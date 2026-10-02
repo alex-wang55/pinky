@@ -5,18 +5,18 @@ import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Shell } from "@/components/shell";
 import { useAuth } from "@/components/auth";
-import { Avatar, Button, Card, PageLoader, Segmented, SectionTitle, useToast } from "@/components/ui";
+import { Button, Card, PageLoader, Segmented, SectionTitle, useToast } from "@/components/ui";
 import { CheckIn } from "@/components/checkin";
 import { Feed, Ledger, Squad } from "@/components/pact-parts";
 import { PetPanel } from "@/components/pet-panel";
+import { AddPeople } from "@/components/add-people";
 import { supabase, errMsg } from "@/lib/supabase";
-import { action } from "@/lib/api";
 import { loadBundle, type Bundle } from "@/lib/data";
 import { computePact, goalLabel, wrapWeek } from "@/lib/stats";
 import { addDays, dayOfWeek, prettyDay, shortDay } from "@/lib/dates";
 import { money } from "@/lib/money";
-import type { Profile } from "@/lib/types";
-import { IconArrowRight, IconCalendar, IconChart, IconFlame } from "@/components/icons";
+import type { Pact } from "@/lib/types";
+import { IconArrowRight, IconCalendar, IconChart, IconFlame, IconPlusUser, IconX } from "@/components/icons";
 
 export default function PactPage() {
   return (
@@ -36,6 +36,7 @@ function PactView() {
   const [nudged, setNudged] = useState<Set<string>>(new Set());
   const [proofUrls, setProofUrls] = useState<Record<string, string>>({});
   const [tab, setTab] = useState<"feed" | "pot" | "info">("feed");
+  const [adding, setAdding] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -187,7 +188,27 @@ function PactView() {
             </Link>
           )}
 
-          <SectionTitle right={!stats.ended ? <span className="text-xs text-muted">midnight cutoff</span> : null}>Squad</SectionTitle>
+          <SectionTitle
+            right={
+              !stats.ended ? (
+                <button
+                  className="flex items-center gap-1 rounded-full px-2 py-1 text-xs font-semibold text-pink hover:bg-pink-soft"
+                  onClick={() => setAdding((a) => !a)}
+                  aria-expanded={adding}
+                >
+                  {adding ? <IconX size={14} /> : <IconPlusUser size={14} />}
+                  {adding ? "Close" : "Add people"}
+                </button>
+              ) : null
+            }
+          >
+            Squad
+          </SectionTitle>
+          {adding && !stats.ended ? (
+            <Card className="animate-pop mb-3 p-4">
+              <AddPeople pact={pact} memberIds={bundle.members.map((m) => m.user_id)} onChange={load} />
+            </Card>
+          ) : null}
           <Card className="p-4">
             <Squad pact={pact} stats={stats} members={bundle.members} userId={userId} nudgedToday={nudged} hypes={bundle.hypes} onNudged={load} />
           </Card>
@@ -234,7 +255,7 @@ function PactView() {
                 <Ledger pact={pact} stats={stats} members={bundle.members} />
               </Card>
             ) : (
-              <InfoTab pactId={pact.id} isCreator={pact.created_by === userId} ended={stats.ended} memberIds={bundle.members.map((m) => m.user_id)} onChange={load} />
+              <InfoTab pact={pact} ended={stats.ended} memberIds={bundle.members.map((m) => m.user_id)} onChange={load} />
             )}
           </div>
         </>
@@ -256,26 +277,15 @@ function Stat({ label, value }: { label: string; value: React.ReactNode }) {
   );
 }
 
-function InfoTab({ pactId, isCreator, ended, memberIds, onChange }: { pactId: string; isCreator: boolean; ended: boolean; memberIds: string[]; onChange: () => void }) {
+function InfoTab({ pact, ended, memberIds, onChange }: { pact: Pact; ended: boolean; memberIds: string[]; onChange: () => void }) {
   const { session } = useAuth();
   const me = session!.user.id;
+  const pactId = pact.id;
+  const isCreator = pact.created_by === me;
   const router = useRouter();
   const toast = useToast();
-  const [friends, setFriends] = useState<Profile[] | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
-
-  useEffect(() => {
-    (async () => {
-      const { data } = await supabase
-        .from("friendships")
-        .select("requester, addressee, r:profiles!friendships_requester_fkey(id,username,display_name,color), a:profiles!friendships_addressee_fkey(id,username,display_name,color)")
-        .eq("status", "accepted");
-      setFriends((data ?? []).map((f) => (f.requester === me ? f.a : f.r) as unknown as Profile));
-    })();
-  }, [me]);
-
-  const invitable = (friends ?? []).filter((f) => !memberIds.includes(f.id));
 
   return (
     <div className="space-y-3">
@@ -300,43 +310,8 @@ function InfoTab({ pactId, isCreator, ended, memberIds, onChange }: { pactId: st
 
       {!ended ? (
         <Card className="p-4">
-          <p className="mb-2 font-semibold">Invite more friends</p>
-          {friends === null ? (
-            <p className="text-sm text-muted">Loading...</p>
-          ) : invitable.length === 0 ? (
-            <p className="text-sm text-muted">
-              Everyone you&apos;re friends with is already in. <Link className="font-semibold text-pink" href="/friends">Add friends</Link>
-            </p>
-          ) : (
-            <div className="divide-y divide-line">
-              {invitable.map((f) => (
-                <div key={f.id} className="flex items-center gap-3 py-2.5">
-                  <Avatar profile={f} size={34} />
-                  <span className="flex-1 font-semibold">{f.display_name}</span>
-                  <Button
-                    size="sm"
-                    variant="soft"
-                    loading={busy === f.id}
-                    onClick={async () => {
-                      setBusy(f.id);
-                      try {
-                        await action({ action: "invite", pactId, users: [f.id] });
-                        toast(`Invited ${f.display_name}`);
-                        onChange();
-                      } catch (e) {
-                        toast(errMsg(e), "err");
-                      } finally {
-                        setBusy(null);
-                      }
-                    }}
-                  >
-                    Invite
-                  </Button>
-                </div>
-              ))}
-            </div>
-          )}
-          <p className="mt-2 text-xs text-muted">People who join late start counting from the day they accept.</p>
+          <p className="mb-3 font-semibold">Add people</p>
+          <AddPeople pact={pact} memberIds={memberIds} onChange={onChange} />
         </Card>
       ) : null}
 
@@ -348,11 +323,32 @@ function InfoTab({ pactId, isCreator, ended, memberIds, onChange }: { pactId: st
         <p>• The group streak resets if anyone breaks.</p>
       </Card>
 
+      {ended ? (
+        <Card className="flex items-center justify-between gap-3 p-4">
+          <span className="text-sm text-muted">Done with this one? Take it off your home screen. You can bring it back later.</span>
+          <Button
+            size="sm"
+            variant="soft"
+            loading={busy === "hide"}
+            onClick={async () => {
+              setBusy("hide");
+              const { error } = await supabase.rpc("hide_pact", { p_pact: pactId, p_hidden: true });
+              setBusy(null);
+              if (error) return toast(errMsg(error), "err");
+              toast("Hidden from your list");
+              router.replace("/");
+            }}
+          >
+            Hide
+          </Button>
+        </Card>
+      ) : null}
+
       {isCreator ? (
         <Card className="p-4">
           {confirmDelete ? (
             <div className="flex items-center gap-2">
-              <span className="flex-1 text-sm font-semibold">Delete for everyone? This can&apos;t be undone.</span>
+              <span className="flex-1 text-sm font-semibold">Delete for everyone? Check-ins, confessions and the recap go too. This can&apos;t be undone.</span>
               <Button size="sm" variant="ghost" onClick={() => setConfirmDelete(false)}>
                 Cancel
               </Button>

@@ -244,3 +244,21 @@ export function IconCalendar(p: P) {
     </Base>
   );
 }
+
+export function IconPlusUser(p: P) {
+  return (
+    <Base {...p}>
+      <circle cx="9.5" cy="8" r="3.5" />
+      <path d="M3 20a6.5 6.5 0 0 1 13 0M19 8v6M16 11h6" />
+    </Base>
+  );
+}
+
+export function IconTrash(p: P) {
+  return (
+    <Base {...p}>
+      <path d="M4.5 7h15M9.5 7V5a1.5 1.5 0 0 1 1.5-1.5h2A1.5 1.5 0 0 1 14.5 5v2" />
+      <path d="M6.5 7l.8 11.2A2 2 0 0 0 9.3 20h5.4a2 2 0 0 0 2-1.8L17.5 7M10 11v5M14 11v5" />
+    </Base>
+  );
+}

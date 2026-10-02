@@ -166,3 +166,9 @@ create table public.hypes (
 );
 alter table public.hypes enable row level security;
 create policy "see hypes in your pacts" on public.hypes for select to authenticated using (public.is_pact_member(pact_id));
+
+-- v3: invite links (see pact_preview / join_pact / reset_invite_code functions)
+alter table public.pacts add column invite_code text not null unique default encode(extensions.gen_random_bytes(6), 'hex');
+
+-- v4: hide finished pacts from your own list (see hide_pact)
+alter table public.pact_members add column hidden boolean not null default false;

@@ -14,7 +14,7 @@ import { addDays, dayOfWeek, prettyDay, shortDay } from "@/lib/dates";
 import { money } from "@/lib/money";
 import { enablePush, isIos, isStandalone, pushSupported } from "@/lib/push-client";
 import type { Pact } from "@/lib/types";
-import { IconArrowRight, IconBell, IconCalendar, IconEye, IconFlame, IconJar, IconMoon, IconNudge, IconPact, IconSpark } from "@/components/icons";
+import { IconArrowRight, IconBell, IconCalendar, IconEye, IconFlame, IconJar, IconMoon, IconNudge, IconPact, IconSpark, IconTrash } from "@/components/icons";
 import { Pet, petState } from "@/components/pet";
 
 export default function Home() {
@@ -39,6 +39,7 @@ function Dashboard({ userId }: { userId: string }) {
   const [hypesIn, setHypesIn] = useState<HypeIn[]>([]);
   const [friendReqs, setFriendReqs] = useState(0);
   const [hasFriends, setHasFriends] = useState(true);
+  const [showHidden, setShowHidden] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -96,7 +97,8 @@ function Dashboard({ userId }: { userId: string }) {
     });
     const invites = rows.filter((r) => r.me?.status === "invited");
     const active = rows.filter((r) => r.me?.status === "active" && !r.stats.ended);
-    const done = rows.filter((r) => r.me?.status === "active" && r.stats.ended);
+    const done = rows.filter((r) => r.me?.status === "active" && r.stats.ended && !r.me.hidden);
+    const hiddenDone = rows.filter((r) => r.me?.status === "active" && r.stats.ended && r.me.hidden);
     // Sort: things I still need to do today first
     active.sort((a, b) => {
       const ap = a.stats.members[userId]?.today === "pending" ? 0 : 1;
@@ -109,7 +111,7 @@ function Dashboard({ userId }: { userId: string }) {
     const wraps = [...active, ...done].filter(
       (r) => r.stats.started && [0, 1].includes(dayOfWeek(r.stats.today)) && addDays(wrapWeek(r.stats.today), 6) >= r.p.start_date && wrapWeek(r.stats.today) <= r.p.end_date,
     );
-    return { invites, active, done, doubtsOnMe, wraps };
+    return { invites, active, done, hiddenDone, doubtsOnMe, wraps };
   }, [bundle, userId]);
 
   async function dismissHypes() {
@@ -277,27 +279,31 @@ function Dashboard({ userId }: { userId: string }) {
         ))}
       </div>
 
-      {computed.done.length ? (
+      {computed.done.length || computed.hiddenDone.length ? (
         <>
           <SectionTitle>Finished</SectionTitle>
           <div className="space-y-2">
-            {computed.done.map(({ p, stats }) => (
-              <Link key={p.id} href={`/pacts/${p.id}/recap`}>
-                <Card className="flex items-center gap-3 p-4">
-                  <span className="text-2xl">{p.emoji}</span>
-                  <div className="flex-1">
-                    <div className="font-semibold">{p.name}</div>
-                    <div className="text-xs text-muted">
-                      {shortDay(p.start_date)} to {shortDay(p.end_date)} · pot {money(stats.potCents)}
-                    </div>
-                  </div>
-                  <span className="flex items-center gap-1 text-sm font-semibold text-pink">
-                    Recap <IconArrowRight size={16} />
-                  </span>
-                </Card>
-              </Link>
+            {computed.done.map(({ p, stats, members }) => (
+              <FinishedRow key={p.id} pact={p} stats={stats} members={members} userId={userId} onChange={load} />
             ))}
+            {computed.done.length === 0 ? <p className="px-1 text-sm text-muted">Nothing here. Hidden pacts are below.</p> : null}
           </div>
+          {computed.hiddenDone.length ? (
+            <div className="mt-3">
+              <button className="px-1 text-sm font-semibold text-muted hover:text-ink" onClick={() => setShowHidden((v) => !v)}>
+                {showHidden
+                  ? "Collapse hidden pacts"
+                  : `Show ${computed.hiddenDone.length} hidden pact${computed.hiddenDone.length === 1 ? "" : "s"}`}
+              </button>
+              {showHidden ? (
+                <div className="mt-2 space-y-2">
+                  {computed.hiddenDone.map(({ p, stats, members }) => (
+                    <FinishedRow key={p.id} pact={p} stats={stats} members={members} userId={userId} onChange={load} hidden />
+                  ))}
+                </div>
+              ) : null}
+            </div>
+          ) : null}
         </>
       ) : null}
     </div>
@@ -356,6 +362,113 @@ function PactCard({
       <div className="mt-4 border-t border-line pt-4">
         <CheckIn pact={pact} stats={stats} userId={userId} doubts={doubts} onChange={onChange} />
       </div>
+    </Card>
+  );
+}
+
+function FinishedRow({
+  pact,
+  stats,
+  members,
+  userId,
+  onChange,
+  hidden,
+}: {
+  pact: Pact;
+  stats: PactStats;
+  members: Bundle["members"];
+  userId: string;
+  onChange: () => void;
+  hidden?: boolean;
+}) {
+  const toast = useToast();
+  const [open, setOpen] = useState(false);
+  const [busy, setBusy] = useState<string | null>(null);
+  const isCreator = pact.created_by === userId;
+  const creator = members.find((m) => m.user_id === pact.created_by)?.profile.display_name ?? "whoever made it";
+
+  async function setHidden(h: boolean) {
+    setBusy(h ? "hide" : "unhide");
+    const { error } = await supabase.rpc("hide_pact", { p_pact: pact.id, p_hidden: h });
+    setBusy(null);
+    if (error) return toast(errMsg(error), "err");
+    toast(h ? "Hidden from your list" : "Back on your list");
+    setOpen(false);
+    onChange();
+  }
+
+  async function remove() {
+    setBusy("delete");
+    const { error } = await supabase.rpc("delete_pact", { p_pact: pact.id });
+    setBusy(null);
+    if (error) return toast(errMsg(error), "err");
+    toast("Pact deleted");
+    onChange();
+  }
+
+  return (
+    <Card className={hidden ? "opacity-70" : ""}>
+      <div className="flex items-center gap-3 p-4">
+        <Link href={`/pacts/${pact.id}/recap`} className="flex min-w-0 flex-1 items-center gap-3">
+          <span className="text-2xl">{pact.emoji}</span>
+          <div className="min-w-0 flex-1">
+            <div className="truncate font-semibold">{pact.name}</div>
+            <div className="text-xs text-muted">
+              {shortDay(pact.start_date)} to {shortDay(pact.end_date)} · pot {money(stats.potCents)}
+            </div>
+          </div>
+          <span className="flex items-center gap-1 text-sm font-semibold text-pink">
+            Recap <IconArrowRight size={16} />
+          </span>
+        </Link>
+        {hidden ? (
+          <Button size="sm" variant="soft" loading={busy === "unhide"} onClick={() => setHidden(false)}>
+            Unhide
+          </Button>
+        ) : (
+          <button
+            className="-mr-1 rounded-xl p-2 text-muted hover:bg-surface-2 hover:text-broke"
+            onClick={() => setOpen((o) => !o)}
+            aria-label={`Remove ${pact.name}`}
+            aria-expanded={open}
+          >
+            <IconTrash size={18} />
+          </button>
+        )}
+      </div>
+      {open ? (
+        <div className="animate-pop border-t border-line px-4 pb-4 pt-3">
+          {isCreator ? (
+            <>
+              <p className="text-sm text-muted">Delete it for everyone, or just take it off your list?</p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <Button size="sm" variant="danger" loading={busy === "delete"} onClick={remove}>
+                  Delete for everyone
+                </Button>
+                <Button size="sm" variant="soft" loading={busy === "hide"} onClick={() => setHidden(true)}>
+                  Just hide it
+                </Button>
+                <Button size="sm" variant="ghost" onClick={() => setOpen(false)}>
+                  Cancel
+                </Button>
+              </div>
+              <p className="mt-2 text-xs text-muted">Deleting wipes the check-ins, confessions and recap for the whole group. It can&apos;t be undone.</p>
+            </>
+          ) : (
+            <>
+              <p className="text-sm text-muted">Only {creator} can delete it for everyone. You can take it off your list.</p>
+              <div className="mt-3 flex gap-2">
+                <Button size="sm" variant="soft" loading={busy === "hide"} onClick={() => setHidden(true)}>
+                  Hide from my list
+                </Button>
+                <Button size="sm" variant="ghost" onClick={() => setOpen(false)}>
+                  Cancel
+                </Button>
+              </div>
+            </>
+          )}
+        </div>
+      ) : null}
     </Card>
   );
 }

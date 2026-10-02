@@ -25,6 +25,7 @@ export type Pact = {
   end_date: string;
   timezone: string;
   pet_name: string | null;
+  invite_code: string;
   created_by: string;
   created_at: string;
 };
@@ -33,6 +34,7 @@ export type Member = {
   pact_id: string;
   user_id: string;
   status: "invited" | "active";
+  hidden: boolean;
   invited_by: string | null;
   starts_on: string | null;
   joined_at: string | null;
