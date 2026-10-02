@@ -1,0 +1,347 @@
+"use client";
+
+import Link from "next/link";
+import { useParams, useRouter } from "next/navigation";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Shell } from "@/components/shell";
+import { useAuth } from "@/components/auth";
+import { Avatar, Button, Card, PageLoader, Segmented, SectionTitle, useToast } from "@/components/ui";
+import { CheckIn } from "@/components/checkin";
+import { Feed, Ledger, Squad } from "@/components/pact-parts";
+import { supabase, errMsg } from "@/lib/supabase";
+import { action } from "@/lib/api";
+import { loadBundle, type Bundle } from "@/lib/data";
+import { computePact, goalLabel } from "@/lib/stats";
+import { prettyDay, shortDay } from "@/lib/dates";
+import { money } from "@/lib/money";
+import type { Profile } from "@/lib/types";
+
+export default function PactPage() {
+  return (
+    <Shell title="Pacts" back="/">
+      <PactView />
+    </Shell>
+  );
+}
+
+function PactView() {
+  const { id } = useParams<{ id: string }>();
+  const { session } = useAuth();
+  const userId = session!.user.id;
+  const toast = useToast();
+  const [bundle, setBundle] = useState<Bundle | null>(null);
+  const [missing, setMissing] = useState(false);
+  const [nudged, setNudged] = useState<Set<string>>(new Set());
+  const [proofUrls, setProofUrls] = useState<Record<string, string>>({});
+  const [tab, setTab] = useState<"feed" | "pot" | "info">("feed");
+
+  const load = useCallback(async () => {
+    try {
+      const b = await loadBundle([id], true);
+      if (b.pacts.length === 0) {
+        setMissing(true);
+        return;
+      }
+      setBundle(b);
+      const { data: n } = await supabase.from("nudges").select("to_user, day").eq("pact_id", id).eq("from_user", userId);
+      const paths = b.checkins.map((c) => c.proof_path).filter(Boolean) as string[];
+      const known = new Set(Object.keys(proofUrls));
+      const fresh = paths.filter((p) => !known.has(p));
+      if (fresh.length) {
+        const { data: signed } = await supabase.storage.from("proofs").createSignedUrls(fresh, 60 * 60 * 6);
+        if (signed) {
+          setProofUrls((prev) => {
+            const next = { ...prev };
+            for (const s of signed) if (s.path && s.signedUrl) next[s.path] = s.signedUrl;
+            return next;
+          });
+        }
+      }
+      const pact = b.pacts[0];
+      const t = new Intl.DateTimeFormat("en-CA", { timeZone: pact.timezone, year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
+      setNudged(new Set((n ?? []).filter((x) => x.day === t).map((x) => x.to_user as string)));
+    } catch (e) {
+      toast(errMsg(e), "err");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id, userId, toast]);
+
+  useEffect(() => {
+    load();
+    const onFocus = () => load();
+    window.addEventListener("focus", onFocus);
+    return () => window.removeEventListener("focus", onFocus);
+  }, [load]);
+
+  const stats = useMemo(() => (bundle ? computePact(bundle.pacts[0], bundle.members, bundle.checkins, bundle.doubts) : null), [bundle]);
+
+  if (missing)
+    return (
+      <Card className="p-6 text-center">
+        <p className="font-semibold">This pact doesn&apos;t exist or you&apos;re not in it.</p>
+        <Button href="/" className="mt-4" variant="soft">
+          Back home
+        </Button>
+      </Card>
+    );
+  if (!bundle || !stats) return <PageLoader />;
+
+  const pact = bundle.pacts[0];
+  const me = bundle.members.find((m) => m.user_id === userId);
+  const isInvited = me?.status === "invited";
+
+  return (
+    <div>
+      <Card className="overflow-hidden">
+        <div className="bg-gradient-to-br from-pink-soft to-surface p-5">
+          <div className="flex items-start gap-3">
+            <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-surface text-3xl shadow-card">{pact.emoji}</span>
+            <div className="min-w-0 flex-1">
+              <h1 className="font-display text-2xl font-extrabold leading-tight">{pact.name}</h1>
+              <p className="text-sm text-muted">
+                {stats.ended
+                  ? `Ended ${shortDay(pact.end_date)}`
+                  : stats.started
+                    ? `Day ${stats.dayNumber} of ${stats.totalDays} · ${stats.daysLeft} left`
+                    : `Starts ${prettyDay(pact.start_date, stats.today)}`}
+              </p>
+            </div>
+          </div>
+          <div className="mt-4 flex flex-wrap gap-1.5 text-xs font-semibold">
+            <Chip>{goalLabel(pact)}</Chip>
+            <Chip>
+              {money(pact.stake_cents)}/miss{pact.escalating ? ", escalating" : ""}
+            </Chip>
+            {pact.off_days_per_week > 0 ? <Chip>{pact.off_days_per_week} off-day{pact.off_days_per_week === 1 ? "" : "s"}/wk</Chip> : null}
+            <Chip>
+              {shortDay(pact.start_date)} to {shortDay(pact.end_date)}
+            </Chip>
+          </div>
+          {pact.rules ? (
+            <p className="mt-3 rounded-xl bg-surface/70 px-3 py-2 text-sm">
+              <span className="font-semibold">Breaking it means: </span>
+              {pact.rules}
+            </p>
+          ) : null}
+        </div>
+        <div className="grid grid-cols-3 divide-x divide-line border-t border-line">
+          <Stat label={`Group ${stats.unit}s`} value={`🔥${stats.groupStreak}`} />
+          <Stat label="Best streak" value={String(stats.bestGroupStreak)} />
+          <Stat label="Pot" value={money(stats.potCents)} />
+        </div>
+      </Card>
+
+      {isInvited ? (
+        <Card className="mt-3 p-4">
+          <p className="font-semibold">You&apos;re invited to this pact.</p>
+          <div className="mt-3 grid grid-cols-2 gap-2">
+            <Button
+              onClick={async () => {
+                const { error } = await supabase.rpc("respond_pact_invite", { p_pact: pact.id, p_accept: true });
+                if (error) return toast(errMsg(error), "err");
+                toast("You're in 🤙");
+                load();
+              }}
+            >
+              I&apos;m in 🤙
+            </Button>
+            <Button
+              variant="soft"
+              onClick={async () => {
+                const { error } = await supabase.rpc("respond_pact_invite", { p_pact: pact.id, p_accept: false });
+                if (error) return toast(errMsg(error), "err");
+                window.location.href = "/";
+              }}
+            >
+              Decline
+            </Button>
+          </div>
+        </Card>
+      ) : (
+        <>
+          {!stats.ended ? (
+            <>
+              <SectionTitle>{pact.goal_type === "weekly" ? "Your week" : "Your check-in"}</SectionTitle>
+              <Card className="p-4">
+                <CheckIn pact={pact} stats={stats} userId={userId} doubts={bundle.doubts} onChange={load} full />
+              </Card>
+            </>
+          ) : (
+            <Link href={`/pacts/${pact.id}/recap`} className="mt-3 block">
+              <Card className="flex items-center justify-between bg-ink p-4 text-bg">
+                <span className="font-display text-lg font-bold">See the final recap 🏁</span>
+                <span>→</span>
+              </Card>
+            </Link>
+          )}
+
+          <SectionTitle right={!stats.ended ? <span className="text-xs text-muted">midnight cutoff</span> : null}>Squad</SectionTitle>
+          <Card className="p-4">
+            <Squad pact={pact} stats={stats} members={bundle.members} userId={userId} nudgedToday={nudged} onNudged={load} />
+          </Card>
+
+          <div className="mt-6">
+            <Segmented
+              value={tab}
+              onChange={setTab}
+              options={[
+                { value: "feed", label: "Feed" },
+                { value: "pot", label: "Pot" },
+                { value: "info", label: "More" },
+              ]}
+            />
+          </div>
+          <div className="mt-4">
+            {tab === "feed" ? (
+              <Feed
+                pact={pact}
+                stats={stats}
+                members={bundle.members}
+                checkins={bundle.checkins}
+                doubts={bundle.doubts}
+                reactions={bundle.reactions}
+                userId={userId}
+                proofUrls={proofUrls}
+                onChange={load}
+              />
+            ) : tab === "pot" ? (
+              <Card className="p-4">
+                <Ledger pact={pact} stats={stats} members={bundle.members} />
+              </Card>
+            ) : (
+              <InfoTab pactId={pact.id} isCreator={pact.created_by === userId} ended={stats.ended} memberIds={bundle.members.map((m) => m.user_id)} onChange={load} />
+            )}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+function Chip({ children }: { children: React.ReactNode }) {
+  return <span className="rounded-full bg-surface/80 px-2.5 py-1 ring-1 ring-line">{children}</span>;
+}
+
+function Stat({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="px-2 py-3 text-center">
+      <div className="font-display text-xl font-extrabold tabular">{value}</div>
+      <div className="text-[10px] font-semibold uppercase tracking-wide text-muted">{label}</div>
+    </div>
+  );
+}
+
+function InfoTab({ pactId, isCreator, ended, memberIds, onChange }: { pactId: string; isCreator: boolean; ended: boolean; memberIds: string[]; onChange: () => void }) {
+  const { session } = useAuth();
+  const me = session!.user.id;
+  const router = useRouter();
+  const toast = useToast();
+  const [friends, setFriends] = useState<Profile[] | null>(null);
+  const [busy, setBusy] = useState<string | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+
+  useEffect(() => {
+    (async () => {
+      const { data } = await supabase
+        .from("friendships")
+        .select("requester, addressee, r:profiles!friendships_requester_fkey(id,username,display_name,color), a:profiles!friendships_addressee_fkey(id,username,display_name,color)")
+        .eq("status", "accepted");
+      setFriends((data ?? []).map((f) => (f.requester === me ? f.a : f.r) as unknown as Profile));
+    })();
+  }, [me]);
+
+  const invitable = (friends ?? []).filter((f) => !memberIds.includes(f.id));
+
+  return (
+    <div className="space-y-3">
+      <Link href={`/pacts/${pactId}/recap`}>
+        <Card className="flex items-center justify-between p-4">
+          <span className="font-semibold">{ended ? "Final recap" : "Recap so far"} 📊</span>
+          <span className="text-pink">→</span>
+        </Card>
+      </Link>
+
+      {!ended ? (
+        <Card className="p-4">
+          <p className="mb-2 font-semibold">Invite more friends</p>
+          {friends === null ? (
+            <p className="text-sm text-muted">Loading...</p>
+          ) : invitable.length === 0 ? (
+            <p className="text-sm text-muted">
+              Everyone you&apos;re friends with is already in. <Link className="font-semibold text-pink" href="/friends">Add friends</Link>
+            </p>
+          ) : (
+            <div className="divide-y divide-line">
+              {invitable.map((f) => (
+                <div key={f.id} className="flex items-center gap-3 py-2.5">
+                  <Avatar profile={f} size={34} />
+                  <span className="flex-1 font-semibold">{f.display_name}</span>
+                  <Button
+                    size="sm"
+                    variant="soft"
+                    loading={busy === f.id}
+                    onClick={async () => {
+                      setBusy(f.id);
+                      try {
+                        await action({ action: "invite", pactId, users: [f.id] });
+                        toast(`Invited ${f.display_name}`);
+                        onChange();
+                      } catch (e) {
+                        toast(errMsg(e), "err");
+                      } finally {
+                        setBusy(null);
+                      }
+                    }}
+                  >
+                    Invite
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
+          <p className="mt-2 text-xs text-muted">People who join late start counting from the day they accept.</p>
+        </Card>
+      ) : null}
+
+      <Card className="space-y-2 p-4 text-sm text-muted">
+        <p className="font-semibold text-ink">House rules</p>
+        <p>• Check in before midnight. No check-in counts as broke.</p>
+        <p>• You get one doubt per week in each pact. The other person has 24h to post a photo or own up.</p>
+        <p>• Off-days don&apos;t break the streak but they&apos;re limited per week.</p>
+        <p>• The group streak resets if anyone breaks.</p>
+      </Card>
+
+      {isCreator ? (
+        <Card className="p-4">
+          {confirmDelete ? (
+            <div className="flex items-center gap-2">
+              <span className="flex-1 text-sm font-semibold">Delete for everyone? This can&apos;t be undone.</span>
+              <Button size="sm" variant="ghost" onClick={() => setConfirmDelete(false)}>
+                Cancel
+              </Button>
+              <Button
+                size="sm"
+                variant="danger"
+                loading={busy === "del"}
+                onClick={async () => {
+                  setBusy("del");
+                  const { error } = await supabase.rpc("delete_pact", { p_pact: pactId });
+                  setBusy(null);
+                  if (error) return toast(errMsg(error), "err");
+                  toast("Pact deleted");
+                  router.replace("/");
+                }}
+              >
+                Delete
+              </Button>
+            </div>
+          ) : (
+            <button className="text-sm font-semibold text-broke" onClick={() => setConfirmDelete(true)}>
+              Delete this pact
+            </button>
+          )}
+        </Card>
+      ) : null}
+    </div>
+  );
+}
