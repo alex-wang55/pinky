@@ -3,13 +3,13 @@
 import { useMemo, useState } from "react";
 import { supabase, errMsg } from "@/lib/supabase";
 import { action } from "@/lib/api";
-import type { Checkin, Doubt, Member, Pact, Reaction } from "@/lib/types";
-import { DOUBT_WINDOW_MS, doubtExpired, effectiveStatus, type PactStats } from "@/lib/stats";
+import type { Checkin, Doubt, Hype, Member, Pact, Reaction } from "@/lib/types";
+import { DOUBT_WINDOW_MS, doubtExpired, effectiveStatus, streakMilestone, type PactStats } from "@/lib/stats";
 import { addDays, prettyDay, shortDay, timeAgo, weekStart, todayIn } from "@/lib/dates";
 import { money } from "@/lib/money";
 import { Avatar, Button, StatusPill, cx, useToast } from "./ui";
 import { ProofButton } from "./checkin";
-import { IconCamera, IconClock, IconEmpty, IconEye, IconFlag, IconFlame, IconNudge, IconSmilePlus, IconX } from "./icons";
+import { IconCamera, IconClock, IconEmpty, IconEye, IconFlag, IconFlame, IconNudge, IconSmilePlus, IconSpark, IconX } from "./icons";
 
 export const EMOJIS = ["😂", "🫡", "💀", "🫶", "😤", "🔥"];
 
@@ -22,6 +22,7 @@ export function Squad({
   members,
   userId,
   nudgedToday,
+  hypes,
   onNudged,
 }: {
   pact: Pact;
@@ -29,6 +30,7 @@ export function Squad({
   members: Member[];
   userId: string;
   nudgedToday: Set<string>;
+  hypes: Hype[];
   onNudged: () => void;
 }) {
   const toast = useToast();
@@ -49,6 +51,19 @@ export function Squad({
     }
   }
 
+  async function hype(to: string, name: string, streak: number) {
+    setBusy(`h-${to}`);
+    try {
+      await action({ action: "hype", pactId: pact.id, toUser: to, streak, unit: stats.unit });
+      toast(`Hyped ${name}`);
+      onNudged();
+    } catch (e) {
+      toast(errMsg(e), "err");
+    } finally {
+      setBusy(null);
+    }
+  }
+
   return (
     <div className="divide-y divide-line">
       {active.map((m) => {
@@ -56,6 +71,9 @@ export function Squad({
         if (!s) return null;
         const isMe = m.user_id === userId;
         const canNudge = !isMe && !stats.ended && s.active && s.today === "pending" && !nudgedToday.has(m.user_id);
+        const milestone = streakMilestone(s.streak, stats.unit);
+        const hypesHere = milestone ? hypes.filter((h) => h.to_user === m.user_id && h.streak === milestone) : [];
+        const canHype = !isMe && !canNudge && milestone !== null && !hypesHere.some((h) => h.from_user === userId);
         return (
           <div key={m.user_id} className="flex items-center gap-3 py-3 first:pt-0 last:pb-0">
             <Avatar profile={m.profile} size={40} />
@@ -64,14 +82,23 @@ export function Squad({
                 <span className="truncate font-semibold">{m.profile.display_name}</span>
                 {isMe ? <span className="text-xs text-muted">(you)</span> : null}
               </div>
-              <div className="flex items-center gap-2 text-xs text-muted">
-                <span className="flex items-center gap-0.5">
+              <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-muted">
+                <span className={cx("flex items-center gap-0.5 whitespace-nowrap", milestone !== null && "font-semibold text-pink")}>
                   <IconFlame size={13} />
                   {s.streak} {stats.unit === "week" ? "wk" : "day"}
                   {s.streak === 1 ? "" : "s"}
                 </span>
                 <span>·</span>
-                <span className="tabular">{money(s.owedCents)} owed</span>
+                <span className="tabular whitespace-nowrap">{money(s.owedCents)} owed</span>
+                {hypesHere.length ? (
+                  <>
+                    <span>·</span>
+                    <span className="flex items-center gap-0.5 whitespace-nowrap font-semibold text-pink">
+                      <IconSpark size={12} />
+                      {hypesHere.length} hype{hypesHere.length === 1 ? "" : "s"}
+                    </span>
+                  </>
+                ) : null}
                 {pact.goal_type === "weekly" && s.active && !stats.ended ? (
                   <>
                     <span>·</span>
@@ -86,6 +113,11 @@ export function Squad({
               <Button size="sm" variant="soft" loading={busy === m.user_id} onClick={() => nudge(m.user_id, m.profile.display_name)}>
                 <IconNudge size={16} />
                 Nudge
+              </Button>
+            ) : canHype && milestone ? (
+              <Button size="sm" variant="primary" loading={busy === `h-${m.user_id}`} onClick={() => hype(m.user_id, m.profile.display_name, milestone)}>
+                <IconSpark size={16} />
+                Hype
               </Button>
             ) : !s.active ? (
               <span className="text-xs text-muted">Starts {shortDay(s.startsOn)}</span>

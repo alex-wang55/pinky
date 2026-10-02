@@ -13,6 +13,7 @@
   --kept: #148a5c;
   --kept-soft: #dcf5e9;
   --kept-ink: #ffffff;
+  --pet-line: #3a1626;
   --broke: #d93a3f;
   --broke-soft: #fde4e4;
   --off: #b7791f;
@@ -35,6 +36,7 @@
     --kept: #45c98f;
     --kept-soft: #143326;
     --kept-ink: #07261a;
+    --pet-line: #f7eef2;
     --broke: #ff6b6f;
     --broke-soft: #3a1a1c;
     --off: #e8b04f;
@@ -107,6 +109,18 @@ select {
   animation: pop 0.28s ease-out;
 }
 
+/* pet */
+@keyframes pet-bounce { 0%, 100% { transform: translateY(0) scale(1, 1); } 40% { transform: translateY(-5px) scale(0.98, 1.03); } 55% { transform: translateY(0) scale(1.04, 0.96); } 70% { transform: translateY(0) scale(1, 1); } }
+@keyframes pet-breathe { 0%, 100% { transform: scale(1, 1); } 50% { transform: scale(1.015, 0.985); } }
+@keyframes pet-droop { 0%, 100% { transform: scale(1.03, 0.96); } 50% { transform: scale(1.05, 0.94); } }
+@keyframes pet-wobble { 0%, 80%, 100% { transform: rotate(0deg); } 85% { transform: rotate(-5deg); } 90% { transform: rotate(5deg); } 95% { transform: rotate(-3deg); } }
+@keyframes pet-blink { 0%, 92%, 100% { transform: scaleY(1); } 95% { transform: scaleY(0.1); } }
+.pet-bounce { animation: pet-bounce 1.6s ease-in-out infinite; }
+.pet-breathe { animation: pet-breathe 3.2s ease-in-out infinite; }
+.pet-droop { animation: pet-droop 3.6s ease-in-out infinite; }
+.pet-wobble { animation: pet-wobble 3.4s ease-in-out infinite; }
+.pet-blink { animation: pet-blink 4.5s ease-in-out infinite; }
+
 @media (prefers-reduced-motion: reduce) {
-  .animate-pop { animation: none; }
+  .animate-pop, .pet-bounce, .pet-breathe, .pet-droop, .pet-wobble, .pet-blink { animation: none; }
 }

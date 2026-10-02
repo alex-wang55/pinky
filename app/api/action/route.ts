@@ -78,6 +78,23 @@ export async function POST(req: Request) {
         return NextResponse.json({ ok: true });
       }
 
+      case "hype": {
+        const pactId = String(body.pactId);
+        const toUser = String(body.toUser);
+        const streak = Number(body.streak);
+        const unit = body.unit === "week" ? "week" : "day";
+        const { error } = await sb.rpc("send_hype", { p_pact: pactId, p_to: toUser, p_streak: streak });
+        if (error) return bad(error.message);
+        const name = await pactInfo(pactId);
+        await pushToUser(toUser, {
+          title: `${myName} hyped your ${streak}-${unit} streak`,
+          body: `${name}. Keep it going.`,
+          url: `/pacts/${pactId}`,
+          tag: `hype-${pactId}`,
+        });
+        return NextResponse.json({ ok: true });
+      }
+
       case "invite": {
         const pactId = String(body.pactId);
         const users = (Array.isArray(body.users) ? body.users : [body.users]).filter(Boolean).map(String);

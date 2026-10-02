@@ -9,12 +9,13 @@ import { CheckIn } from "@/components/checkin";
 import { LogoMark } from "@/components/logo";
 import { supabase, errMsg } from "@/lib/supabase";
 import { loadBundle, type Bundle } from "@/lib/data";
-import { computePact, doubtExpired, goalLabel, type PactStats } from "@/lib/stats";
-import { prettyDay, shortDay } from "@/lib/dates";
+import { computePact, doubtExpired, goalLabel, wrapWeek, type PactStats } from "@/lib/stats";
+import { addDays, dayOfWeek, prettyDay, shortDay } from "@/lib/dates";
 import { money } from "@/lib/money";
 import { enablePush, isIos, isStandalone, pushSupported } from "@/lib/push-client";
 import type { Pact } from "@/lib/types";
-import { IconArrowRight, IconBell, IconEye, IconFlame, IconJar, IconMoon, IconNudge, IconPact } from "@/components/icons";
+import { IconArrowRight, IconBell, IconCalendar, IconEye, IconFlame, IconJar, IconMoon, IconNudge, IconPact, IconSpark } from "@/components/icons";
+import { Pet, petState } from "@/components/pet";
 
 export default function Home() {
   const { session, loading } = useAuth();
@@ -28,12 +29,14 @@ export default function Home() {
 }
 
 type Nudge = { id: string; pact_id: string; from: { display_name: string; color: string }; pact: { name: string; emoji: string } };
+type HypeIn = { id: string; pact_id: string; streak: number; from: { display_name: string }; pact: { name: string; emoji: string; goal_type: string } };
 
 function Dashboard({ userId }: { userId: string }) {
   const { profile } = useAuth();
   const toast = useToast();
   const [bundle, setBundle] = useState<Bundle | null>(null);
   const [nudges, setNudges] = useState<Nudge[]>([]);
+  const [hypesIn, setHypesIn] = useState<HypeIn[]>([]);
   const [friendReqs, setFriendReqs] = useState(0);
   const [hasFriends, setHasFriends] = useState(true);
 
@@ -42,7 +45,7 @@ function Dashboard({ userId }: { userId: string }) {
       const { data: mine, error } = await supabase.from("pact_members").select("pact_id").eq("user_id", userId);
       if (error) throw error;
       const ids = (mine ?? []).map((m) => m.pact_id as string);
-      const [b, n, fr, fa] = await Promise.all([
+      const [b, n, fr, fa, hy] = await Promise.all([
         loadBundle(ids),
         supabase
           .from("nudges")
@@ -52,9 +55,16 @@ function Dashboard({ userId }: { userId: string }) {
           .order("created_at", { ascending: false }),
         supabase.from("friendships").select("id", { count: "exact", head: true }).eq("addressee", userId).eq("status", "pending"),
         supabase.from("friendships").select("id", { count: "exact", head: true }).eq("status", "accepted"),
+        supabase
+          .from("hypes")
+          .select("id, pact_id, streak, from:profiles!hypes_from_user_fkey(display_name), pact:pacts(name,emoji,goal_type)")
+          .eq("to_user", userId)
+          .eq("seen", false)
+          .order("created_at", { ascending: false }),
       ]);
       setBundle(b);
       setNudges((n.data ?? []) as unknown as Nudge[]);
+      setHypesIn((hy.data ?? []) as unknown as HypeIn[]);
       setFriendReqs(fr.count ?? 0);
       setHasFriends((fa.count ?? 0) > 0);
     } catch (e) {
@@ -95,8 +105,17 @@ function Dashboard({ userId }: { userId: string }) {
     });
     const myCheckins = new Set(bundle.checkins.filter((c) => c.user_id === userId).map((c) => c.id));
     const doubtsOnMe = bundle.doubts.filter((d) => myCheckins.has(d.checkin_id) && d.status === "open" && !doubtExpired(d, now));
-    return { invites, active, done, doubtsOnMe };
+    // Weekly wrap card shows Sunday and Monday for pacts that ran that week.
+    const wraps = [...active, ...done].filter(
+      (r) => r.stats.started && [0, 1].includes(dayOfWeek(r.stats.today)) && addDays(wrapWeek(r.stats.today), 6) >= r.p.start_date && wrapWeek(r.stats.today) <= r.p.end_date,
+    );
+    return { invites, active, done, doubtsOnMe, wraps };
   }, [bundle, userId]);
+
+  async function dismissHypes() {
+    setHypesIn([]);
+    await supabase.rpc("mark_hypes_seen");
+  }
 
   async function dismissNudges() {
     setNudges([]);
@@ -118,6 +137,62 @@ function Dashboard({ userId }: { userId: string }) {
               : `${pending} pact${pending === 1 ? "" : "s"} waiting on you today.`}
         </p>
       </div>
+
+      {hypesIn.length ? (
+        <Card className="mb-3 border-pink/30 bg-pink-soft p-4">
+          <div className="flex items-start gap-3">
+            <span className="mt-0.5 text-pink">
+              <IconSpark size={22} />
+            </span>
+            <div className="flex-1 text-sm">
+              {Object.values(
+                hypesIn.reduce<Record<string, HypeIn[]>>((acc, h) => {
+                  (acc[`${h.pact_id}|${h.streak}`] ||= []).push(h);
+                  return acc;
+                }, {}),
+              )
+                .slice(0, 3)
+                .map((group) => {
+                  const h = group[0];
+                  const names = group.map((g) => g.from?.display_name).filter(Boolean);
+                  const who = names.length > 2 ? `${names.slice(0, 2).join(", ")} and ${names.length - 2} more` : names.join(" and ");
+                  return (
+                    <p key={h.id}>
+                      <b>{who}</b> hyped your {h.streak}-{h.pact?.goal_type === "weekly" ? "week" : "day"} streak in{" "}
+                      <Link className="font-semibold underline" href={`/pacts/${h.pact_id}`}>
+                        {h.pact?.emoji} {h.pact?.name}
+                      </Link>
+                    </p>
+                  );
+                })}
+            </div>
+            <button className="text-sm font-semibold text-pink" onClick={dismissHypes}>
+              Thanks
+            </button>
+          </div>
+        </Card>
+      ) : null}
+
+      {computed.wraps.length ? (
+        <Card className="mb-3 p-4">
+          <div className="flex items-center gap-2 font-semibold">
+            <IconCalendar size={18} className="text-pink" />
+            Your weekly wrap is in
+          </div>
+          <div className="mt-2 divide-y divide-line">
+            {computed.wraps.map(({ p }) => (
+              <Link key={p.id} href={`/pacts/${p.id}/week`} className="flex items-center justify-between py-2 text-sm">
+                <span>
+                  {p.emoji} {p.name}
+                </span>
+                <span className="flex items-center gap-1 font-semibold text-pink">
+                  See the week <IconArrowRight size={14} />
+                </span>
+              </Link>
+            ))}
+          </div>
+        </Card>
+      ) : null}
 
       {nudges.length ? (
         <Card className="mb-3 border-pink/30 bg-pink-soft p-4">
@@ -245,13 +320,18 @@ function PactCard({
   onChange: () => void;
 }) {
   const active = members.filter((m) => m.status === "active");
+  const pet = petState(pact, stats);
   return (
     <Card className="p-4">
       <Link href={`/pacts/${pact.id}`} className="block">
         <div className="flex items-start gap-3">
-          <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-surface-2 text-2xl">{pact.emoji}</span>
+          <span className="-my-1 -ml-1 shrink-0">
+            <Pet stage={pet.stage} mood={pet.mood} size={60} />
+          </span>
           <div className="min-w-0 flex-1">
-            <h3 className="truncate font-display text-lg font-bold leading-tight">{pact.name}</h3>
+            <h3 className="truncate font-display text-lg font-bold leading-tight">
+              {pact.emoji} {pact.name}
+            </h3>
             <p className="text-xs text-muted">
               {stats.started ? `Day ${stats.dayNumber} of ${stats.totalDays}` : `Starts ${prettyDay(pact.start_date, stats.today)}`} · {goalLabel(pact)} · {money(pact.stake_cents)}/miss
             </p>

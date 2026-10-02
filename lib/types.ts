@@ -24,6 +24,7 @@ export type Pact = {
   start_date: string;
   end_date: string;
   timezone: string;
+  pet_name: string | null;
   created_by: string;
   created_at: string;
 };
@@ -66,6 +67,16 @@ export type Reaction = {
   pact_id: string;
   user_id: string;
   emoji: string;
+};
+
+export type Hype = {
+  id: string;
+  pact_id: string;
+  from_user: string;
+  to_user: string;
+  streak: number;
+  seen: boolean;
+  created_at: string;
 };
 
 export type Friendship = {

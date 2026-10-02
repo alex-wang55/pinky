@@ -3,7 +3,7 @@ import { addDays, diffDays, eachDay, maxDay, minDay, shortDay, todayIn, weekStar
 
 export type DayState = "kept" | "broke" | "off" | "pending";
 export type MissKind = "confessed" | "auto" | "doubt" | "short";
-export type Miss = { day: string; kind: MissKind; cents: number; label: string };
+export type Miss = { day: string; kind: MissKind; cents: number; label: string; comeback?: boolean };
 
 export const DOUBT_WINDOW_MS = 24 * 3600 * 1000;
 
@@ -49,6 +49,8 @@ export type MemberStats = {
   offLeftThisWeek: number;
   weekCount: number; // weekly: sessions logged this week
   weekTarget: number; // weekly: target this week (prorated)
+  comebacks: number; // misses that got halved by keeping it the next day
+  comebackOffer: Miss | null; // yesterday's miss, still waiting on today to be halved
 };
 
 export type PactStats = {
@@ -63,6 +65,9 @@ export type PactStats = {
   groupToday: DayState | null;
   groupStreak: number;
   bestGroupStreak: number;
+  groupDaysKept: number; // total days (or weeks) everyone kept it; feeds the pet, never goes down
+  groupBrokeToday: boolean; // someone broke it today (or this week, for weekly pacts)
+  groupBrokeYesterday: boolean;
   potCents: number;
 };
 
@@ -131,6 +136,8 @@ export function computePact(
       offLeftThisWeek: 0,
       weekCount: 0,
       weekTarget: 0,
+      comebacks: 0,
+      comebackOffer: null,
     };
 
     for (const c of mine) {
@@ -173,6 +180,20 @@ export function computePact(
           });
           if (kind === "auto") s.autoMisses++;
           if (kind === "doubt") s.doubtMisses++;
+        }
+      }
+      // Comeback day: keep it the day after a miss and that miss is half price.
+      // Lost doubts don't qualify (that one was a fib, not a slip).
+      for (const m of s.misses) {
+        if (m.kind !== "confessed" && m.kind !== "auto") continue;
+        const next = s.days[addDays(m.day, 1)];
+        if (next === "kept") {
+          m.cents = Math.round(m.cents / 2);
+          m.comeback = true;
+          m.label += " · comeback, half off";
+          s.comebacks++;
+        } else if (next === "pending" && !ended) {
+          s.comebackOffer = m;
         }
       }
       const r = runs(states);
@@ -252,7 +273,11 @@ export function computePact(
   });
   const g = runs(groupStates);
   const currentKey = isWeekly ? weekStart(today) : today;
+  const prevKey = isWeekly ? addDays(weekStart(today), -7) : addDays(today, -1);
   const groupToday = !ended && started ? (groupStates[sorted.indexOf(currentKey)] ?? null) : null;
+  const groupDaysKept = groupStates.filter((x) => x === "kept").length;
+  const groupBrokeToday = groupToday === "broke";
+  const groupBrokeYesterday = groupStates[sorted.indexOf(prevKey)] === "broke";
 
   return {
     today,
@@ -266,6 +291,9 @@ export function computePact(
     groupToday,
     groupStreak: g.current,
     bestGroupStreak: g.best,
+    groupDaysKept,
+    groupBrokeToday,
+    groupBrokeYesterday,
     potCents: Object.values(out).reduce((a, s) => a + s.owedCents, 0),
   };
 }
@@ -274,4 +302,99 @@ export function goalLabel(p: Pact): string {
   if (p.goal_type === "count") return `${Number(p.target).toLocaleString()} ${p.unit ?? ""} a day`.trim();
   if (p.goal_type === "weekly") return `${p.target}x a week`;
   return "Every day";
+}
+
+/* ------------------------------------------------------------------ */
+/* Hype milestones                                                      */
+/* ------------------------------------------------------------------ */
+const DAY_MILESTONES = [3, 7, 14, 21, 30, 45, 60, 75, 100, 150, 200, 365];
+const WEEK_MILESTONES = [2, 4, 6, 8, 12, 16, 20, 26, 52];
+
+/** The biggest milestone this streak has passed, or null if it hasn't hit the first one. */
+export function streakMilestone(streak: number, unit: "day" | "week"): number | null {
+  const list = unit === "week" ? WEEK_MILESTONES : DAY_MILESTONES;
+  let hit: number | null = null;
+  for (const m of list) if (streak >= m) hit = m;
+  return hit;
+}
+
+/* ------------------------------------------------------------------ */
+/* Weekly wrap                                                          */
+/* ------------------------------------------------------------------ */
+export type WeekMember = {
+  userId: string;
+  kept: number;
+  broke: number;
+  off: number;
+  logged: number; // weekly goals: sessions logged
+  target: number; // weekly goals: sessions needed
+  owedCents: number;
+  confessions: number;
+  ghosts: number;
+  comebacks: number;
+};
+
+export type WeekSummary = {
+  from: string;
+  to: string;
+  complete: boolean;
+  members: WeekMember[];
+  potCents: number;
+  perfectDays: number; // daily/count: days everyone kept it
+  countedDays: number;
+};
+
+/** Which week the wrap should show: this week on Sunday, otherwise last week. */
+export function wrapWeek(today: string): string {
+  const ws = weekStart(today);
+  return addDays(ws, 6) === today ? ws : addDays(ws, -7);
+}
+
+export function weekSummary(pact: Pact, stats: PactStats, checkins: Checkin[], doubts: Doubt[], ws: string, now = Date.now()): WeekSummary {
+  const from = maxDay(ws, pact.start_date);
+  const to = minDay(addDays(ws, 6), pact.end_date);
+  const inRange = (d: string) => d >= from && d <= to;
+  const members: WeekMember[] = Object.values(stats.members).map((s) => {
+    const misses = pact.goal_type === "weekly" ? s.misses.filter((m) => m.day === ws) : s.misses.filter((m) => inRange(m.day));
+    const days = Object.entries(s.days).filter(([d]) => inRange(d));
+    const logged = checkins.filter(
+      (c) => c.user_id === s.userId && inRange(c.day) && effectiveStatus(c, doubts, now).status === "kept",
+    ).length;
+    let target = 0;
+    if (pact.goal_type === "weekly" && from <= to) {
+      const start = maxDay(from, s.startsOn);
+      target = start <= to ? Math.ceil(((pact.target ?? 1) * (diffDays(to, start) + 1)) / 7) : 0;
+    }
+    return {
+      userId: s.userId,
+      kept: days.filter(([, v]) => v === "kept").length,
+      broke: days.filter(([, v]) => v === "broke").length,
+      off: days.filter(([, v]) => v === "off").length,
+      logged,
+      target,
+      owedCents: misses.reduce((a, m) => a + m.cents, 0),
+      confessions: misses.filter((m) => m.kind === "confessed").length,
+      ghosts: misses.filter((m) => m.kind === "auto").length,
+      comebacks: misses.filter((m) => m.comeback).length,
+    };
+  });
+  let perfectDays = 0;
+  let countedDays = 0;
+  if (pact.goal_type !== "weekly" && from <= to) {
+    for (const d of eachDay(from, to)) {
+      const states = Object.values(stats.members).map((s) => s.days[d]).filter(Boolean);
+      if (!states.length || states.includes("pending")) continue;
+      countedDays++;
+      if (states.every((x) => x === "kept" || x === "off")) perfectDays++;
+    }
+  }
+  return {
+    from,
+    to,
+    complete: stats.today > to,
+    members,
+    potCents: members.reduce((a, m) => a + m.owedCents, 0),
+    perfectDays,
+    countedDays,
+  };
 }

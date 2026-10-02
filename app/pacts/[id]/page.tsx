@@ -8,14 +8,15 @@ import { useAuth } from "@/components/auth";
 import { Avatar, Button, Card, PageLoader, Segmented, SectionTitle, useToast } from "@/components/ui";
 import { CheckIn } from "@/components/checkin";
 import { Feed, Ledger, Squad } from "@/components/pact-parts";
+import { PetPanel } from "@/components/pet-panel";
 import { supabase, errMsg } from "@/lib/supabase";
 import { action } from "@/lib/api";
 import { loadBundle, type Bundle } from "@/lib/data";
-import { computePact, goalLabel } from "@/lib/stats";
-import { prettyDay, shortDay } from "@/lib/dates";
+import { computePact, goalLabel, wrapWeek } from "@/lib/stats";
+import { addDays, dayOfWeek, prettyDay, shortDay } from "@/lib/dates";
 import { money } from "@/lib/money";
 import type { Profile } from "@/lib/types";
-import { IconArrowRight, IconChart, IconFlame } from "@/components/icons";
+import { IconArrowRight, IconCalendar, IconChart, IconFlame } from "@/components/icons";
 
 export default function PactPage() {
   return (
@@ -140,6 +141,8 @@ function PactView() {
         </div>
       </Card>
 
+      {!isInvited ? <PetPanel pact={pact} stats={stats} onChange={load} /> : null}
+
       {isInvited ? (
         <Card className="mt-3 p-4">
           <p className="font-semibold">You&apos;re invited to this pact.</p>
@@ -186,8 +189,21 @@ function PactView() {
 
           <SectionTitle right={!stats.ended ? <span className="text-xs text-muted">midnight cutoff</span> : null}>Squad</SectionTitle>
           <Card className="p-4">
-            <Squad pact={pact} stats={stats} members={bundle.members} userId={userId} nudgedToday={nudged} onNudged={load} />
+            <Squad pact={pact} stats={stats} members={bundle.members} userId={userId} nudgedToday={nudged} hypes={bundle.hypes} onNudged={load} />
           </Card>
+
+          {stats.started && addDays(wrapWeek(stats.today), 6) >= pact.start_date && [0, 1].includes(dayOfWeek(stats.today)) ? (
+            <Link href={`/pacts/${pact.id}/week`} className="mt-3 block">
+              <Card className="flex items-center gap-3 border-pink/30 bg-pink-soft p-4">
+                <IconCalendar size={22} className="shrink-0 text-pink" />
+                <span className="flex-1">
+                  <span className="block font-semibold">Weekly wrap is in</span>
+                  <span className="block text-sm text-muted">See how the week went and who carried the group.</span>
+                </span>
+                <IconArrowRight size={18} className="text-pink" />
+              </Card>
+            </Link>
+          ) : null}
 
           <div className="mt-6">
             <Segmented
@@ -263,6 +279,15 @@ function InfoTab({ pactId, isCreator, ended, memberIds, onChange }: { pactId: st
 
   return (
     <div className="space-y-3">
+      <Link href={`/pacts/${pactId}/week`}>
+        <Card className="flex items-center justify-between p-4">
+          <span className="flex items-center gap-2 font-semibold">
+            <IconCalendar size={18} className="text-pink" />
+            Weekly wrap
+          </span>
+          <IconArrowRight size={18} className="text-pink" />
+        </Card>
+      </Link>
       <Link href={`/pacts/${pactId}/recap`}>
         <Card className="flex items-center justify-between p-4">
           <span className="flex items-center gap-2 font-semibold">

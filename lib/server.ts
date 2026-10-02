@@ -57,6 +57,12 @@ export async function pushToUser(userId: string, payload: PushPayload): Promise<
   return sendTo(data as Target[], payload);
 }
 
+export async function wrapTargets() {
+  const { data, error } = await sbAs().rpc("wrap_targets", { p_secret: SECRET });
+  if (error) throw error;
+  return (data ?? []) as (Target & { target_user: string })[];
+}
+
 export async function reminderTargets() {
   const { data, error } = await sbAs().rpc("reminder_targets", { p_secret: SECRET });
   if (error) throw error;

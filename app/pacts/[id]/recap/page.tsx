@@ -10,7 +10,7 @@ import { loadBundle, type Bundle } from "@/lib/data";
 import { computePact, doubtExpired, goalLabel } from "@/lib/stats";
 import { shortDay } from "@/lib/dates";
 import { money } from "@/lib/money";
-import { IconFlag, IconFlame, IconGhost, IconJar, IconSearch, IconTrophy } from "@/components/icons";
+import { IconFlag, IconFlame, IconGhost, IconJar, IconRebound, IconSearch, IconTrophy } from "@/components/icons";
 
 export default function RecapPage() {
   const { id } = useParams<{ id: string }>();
@@ -52,6 +52,7 @@ function Recap({ id }: { id: string }) {
     const awards = [
       { Icon: IconTrophy, title: "Iron will", who: pick(people, (p) => (p.s.decided ? p.rate : -1), 0), why: (p: (typeof people)[0]) => `${Math.round(p.rate * 100)}% kept` },
       { Icon: IconFlame, title: "Longest streak", who: pick(people, (p) => p.s.bestStreak), why: (p: (typeof people)[0]) => `${p.s.bestStreak} ${stats.unit}s` },
+      { Icon: IconRebound, title: "Comeback kid", who: pick(people, (p) => p.s.comebacks), why: (p: (typeof people)[0]) => `${p.s.comebacks} comeback${p.s.comebacks === 1 ? "" : "s"}` },
       { Icon: IconFlag, title: "Most honest", who: pick(people, (p) => p.s.confessions), why: (p: (typeof people)[0]) => `${p.s.confessions} confession${p.s.confessions === 1 ? "" : "s"}` },
       { Icon: IconSearch, title: "Detective", who: pick(people, (p) => p.doubtsWon), why: (p: (typeof people)[0]) => `${p.doubtsWon} doubt${p.doubtsWon === 1 ? "" : "s"} landed` },
       { Icon: IconGhost, title: "The ghost", who: pick(people, (p) => p.s.autoMisses), why: (p: (typeof people)[0]) => `${p.s.autoMisses} no-show${p.s.autoMisses === 1 ? "" : "s"}` },

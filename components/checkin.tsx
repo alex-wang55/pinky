@@ -6,10 +6,10 @@ import { compressImage } from "@/lib/image";
 import type { Checkin, Doubt, Pact } from "@/lib/types";
 import type { PactStats } from "@/lib/stats";
 import { effectiveStatus } from "@/lib/stats";
-import { prettyDay } from "@/lib/dates";
+import { addDays, prettyDay } from "@/lib/dates";
 import { money } from "@/lib/money";
 import { Button, StatusPill, inputCls, useToast, cx } from "./ui";
-import { IconCamera, IconPencil } from "./icons";
+import { IconCamera, IconPencil, IconRebound } from "./icons";
 
 export async function uploadProof(pact: Pact, checkin: Checkin, userId: string, file: File) {
   const blob = await compressImage(file);
@@ -183,8 +183,18 @@ export function CheckIn({
   }
 
   /* ---------- daily / count ---------- */
+  const todayMiss = me.misses.find((m) => m.day === stats.today);
+  const offer = me.comebackOffer;
   return (
     <div className="space-y-3">
+      {offer && (!c || editing) ? (
+        <div className="flex items-start gap-2.5 rounded-2xl bg-kept-soft px-3 py-2.5 text-sm text-kept">
+          <IconRebound size={18} className="mt-0.5 shrink-0" />
+          <span>
+            <b>Comeback day.</b> Keep it today and yesterday&apos;s {money(offer.cents)} miss drops to {money(Math.round(offer.cents / 2))}.
+          </span>
+        </div>
+      ) : null}
       {c && !editing ? (
         <div className="flex flex-wrap items-center gap-2">
           <StatusPill status={eff ?? "pending"} />
@@ -193,7 +203,12 @@ export function CheckIn({
               {Number(c.value).toLocaleString()} / {Number(pact.target).toLocaleString()} {pact.unit}
             </span>
           ) : null}
-          {eff === "broke" ? <span className="text-sm text-muted">+{money(me.misses.find((m) => m.day === stats.today)?.cents ?? pact.stake_cents)} to the pot</span> : null}
+          {eff === "broke" ? <span className="text-sm text-muted">+{money(todayMiss?.cents ?? pact.stake_cents)} to the pot</span> : null}
+          {eff === "kept" && offer === null && me.comebacks > 0 && me.misses.some((m) => m.comeback && m.day === addDays(stats.today, -1)) ? (
+            <span className="flex items-center gap-1 text-sm font-semibold text-kept">
+              <IconRebound size={15} /> Comeback. Yesterday&apos;s miss is half off.
+            </span>
+          ) : null}
           {!myOpenDoubt ? (
             <button className="ml-auto text-sm font-semibold text-muted underline-offset-2 hover:underline" onClick={() => setEditing(true)}>
               Change
@@ -238,6 +253,13 @@ export function CheckIn({
             </Button>
           </div>
         )
+      ) : null}
+
+      {c && !editing && eff === "broke" && todayMiss && todayMiss.kind !== "doubt" ? (
+        <p className="flex items-center gap-1.5 text-xs text-muted">
+          <IconRebound size={14} className="shrink-0" />
+          Keep it tomorrow and this one&apos;s half off.
+        </p>
       ) : null}
 
       {showButtons && pact.off_days_per_week > 0 ? (

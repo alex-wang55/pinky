@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { reminderTargets, sendTo } from "@/lib/server";
+import { reminderTargets, sendTo, wrapTargets } from "@/lib/server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -20,5 +20,18 @@ export async function GET(req: Request) {
       tag: "daily-reminder",
     });
   }
-  return NextResponse.json({ targets: targets.length, sent });
+  // Sunday evening (Eastern): everyone in an active pact gets their weekly wrap.
+  let wraps = 0;
+  const weekday = new Intl.DateTimeFormat("en-US", { timeZone: "America/Toronto", weekday: "short" }).format(new Date());
+  if (weekday === "Sun") {
+    for (const t of await wrapTargets()) {
+      wraps += await sendTo([t], {
+        title: "Your weekly wrap is in",
+        body: "See how the week went and who carried the group.",
+        url: "/",
+        tag: "weekly-wrap",
+      });
+    }
+  }
+  return NextResponse.json({ targets: targets.length, sent, wraps });
 }

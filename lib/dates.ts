@@ -77,3 +77,8 @@ export function timeAgo(iso: string, now = Date.now()): string {
   if (h < 24) return `${h}h ago`;
   return `${Math.round(h / 24)}d ago`;
 }
+
+/** 0 = Sunday ... 6 = Saturday */
+export function dayOfWeek(d: string): number {
+  return parse(d).getUTCDay();
+}

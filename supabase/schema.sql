@@ -151,3 +151,18 @@ create policy "members upload own proofs" on storage.objects for insert to authe
   bucket_id = 'proofs' and (storage.foldername(name))[2] = (select auth.uid())::text
   and exists (select 1 from public.pact_members m
     where m.pact_id::text = (storage.foldername(name))[1] and m.user_id = (select auth.uid()) and m.status = 'active'));
+
+-- v2: pet + hypes
+alter table public.pacts add column pet_name text check (char_length(pet_name) between 1 and 24);
+create table public.hypes (
+  id uuid primary key default gen_random_uuid(),
+  pact_id uuid not null references public.pacts(id) on delete cascade,
+  from_user uuid not null references public.profiles(id) on delete cascade,
+  to_user uuid not null references public.profiles(id) on delete cascade,
+  streak int not null check (streak > 0),
+  seen boolean not null default false,
+  created_at timestamptz not null default now(),
+  unique (pact_id, from_user, to_user, streak)
+);
+alter table public.hypes enable row level security;
+create policy "see hypes in your pacts" on public.hypes for select to authenticated using (public.is_pact_member(pact_id));

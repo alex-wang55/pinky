@@ -208,3 +208,39 @@ export function IconChart(p: P) {
     </Base>
   );
 }
+
+/** Arrow that dips and comes back up: comeback day. */
+export function IconRebound(p: P) {
+  return (
+    <Base {...p}>
+      <path d="M3.5 7.5c2.5 0 3.6 1.6 4.6 4.2 1.1 2.9 2.4 5.3 5.4 5.3 3.6 0 5.6-3.6 6.5-8.5" />
+      <path d="M16.6 9.6l3.4-1.6 1.2 3.6" />
+    </Base>
+  );
+}
+
+/** A little burst: hype. */
+export function IconSpark(p: P) {
+  return (
+    <Base {...p}>
+      <path d="M12 3.5v4M12 16.5v4M3.5 12h4M16.5 12h4M6 6l2.6 2.6M15.4 15.4 18 18M18 6l-2.6 2.6M8.6 15.4 6 18" />
+    </Base>
+  );
+}
+
+export function IconArrowLeft(p: P) {
+  return (
+    <Base {...p}>
+      <path d="M19 12H5M10.5 6.5 5 12l5.5 5.5" />
+    </Base>
+  );
+}
+
+export function IconCalendar(p: P) {
+  return (
+    <Base {...p}>
+      <rect x="4" y="5.5" width="16" height="15" rx="3" />
+      <path d="M8 3.5v4M16 3.5v4M4 10.5h16" />
+    </Base>
+  );
+}
