@@ -56,7 +56,7 @@ export async function POST(req: Request) {
         if (error) return bad(error.message);
         const name = await pactInfo(pactId);
         await pushToUser(toUser, {
-          title: `${myName} nudged you 👉`,
+          title: `${myName} nudged you`,
           body: `Check in for ${name} before midnight.`,
           url: `/pacts/${pactId}`,
           tag: `nudge-${pactId}`,
@@ -70,7 +70,7 @@ export async function POST(req: Request) {
         const res = data as { target_user: string; pact_id: string };
         const name = await pactInfo(res.pact_id);
         await pushToUser(res.target_user, {
-          title: `${myName} doubts your check-in 🤨`,
+          title: `${myName} doubts your check-in`,
           body: `Post a proof photo or own up within 24 hours (${name}).`,
           url: `/pacts/${res.pact_id}`,
           tag: `doubt-${res.pact_id}`,

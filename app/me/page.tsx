@@ -8,6 +8,7 @@ import { COLORS } from "@/components/auth-forms";
 import { Avatar, Button, Card, Field, SectionTitle, Toggle, inputCls, cx, useToast } from "@/components/ui";
 import { supabase, errMsg } from "@/lib/supabase";
 import { currentSubscription, disablePush, enablePush, isIos, isStandalone, pushSupported } from "@/lib/push-client";
+import { IconEye, IconFlame, IconJar, IconMoon, IconPact } from "@/components/icons";
 
 export default function MePage() {
   return (
@@ -59,7 +60,7 @@ function Me() {
       if (on) {
         await enablePush();
         setPush("on");
-        toast("Notifications on 🔔");
+        toast("Notifications on");
       } else {
         await disablePush();
         setPush("off");
@@ -128,12 +129,22 @@ function Me() {
       </Card>
 
       <SectionTitle>How Pinky works</SectionTitle>
-      <Card className="space-y-2 p-4 text-sm text-muted">
-        <p>🤙 Make a pact with friends: a goal, a stake per miss, and what counts as breaking it.</p>
-        <p>🌙 Check in before midnight. If you don&apos;t, it counts as broke.</p>
-        <p>🔥 The group streak only grows if everyone keeps it.</p>
-        <p>🤨 One doubt a week per pact. Doubted? Post a photo or own up within 24h.</p>
-        <p>💸 Misses go in the pot. Settle up with e-transfer when it ends.</p>
+      <Card className="space-y-3 p-4 text-sm text-muted">
+        {[
+          [IconPact, "Make a pact with friends: a goal, a stake per miss, and what counts as breaking it."],
+          [IconMoon, "Check in before midnight. If you don't, it counts as broke."],
+          [IconFlame, "The group streak only grows if everyone keeps it."],
+          [IconEye, "One doubt a week per pact. Doubted? Post a photo or own up within 24h."],
+          [IconJar, "Misses go in the pot. Settle up with e-transfer when it ends."],
+        ].map(([Icon, text]) => {
+          const I = Icon as typeof IconPact;
+          return (
+            <p key={text as string} className="flex gap-2.5">
+              <I size={18} className="mt-px shrink-0 text-pink" />
+              <span>{text as string}</span>
+            </p>
+          );
+        })}
       </Card>
 
       <div className="mt-6">

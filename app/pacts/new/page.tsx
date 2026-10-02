@@ -9,6 +9,7 @@ import { supabase, errMsg } from "@/lib/supabase";
 import { action } from "@/lib/api";
 import { addDays, diffDays, localTz, todayIn } from "@/lib/dates";
 import type { GoalType, Profile } from "@/lib/types";
+import { IconCheck } from "@/components/icons";
 
 const EMOJI_OPTIONS = ["🥗", "🍔", "🏋️", "🏃", "💧", "📚", "😴", "🧘", "🚭", "📵", "🍺", "✍️", "💸", "🤙"];
 const LENGTHS = [
@@ -94,7 +95,7 @@ function Form() {
       return toast(errMsg(error), "err");
     }
     if (invite.size) action({ action: "notify_invites", pactId: data }).catch(() => {});
-    toast("Pact made. Pinky promise 🤙");
+    toast("Pact made. Pinky promise.");
     router.replace(`/pacts/${data}`);
   }
 
@@ -262,7 +263,7 @@ function Form() {
                     <span className="block font-semibold">{f.display_name}</span>
                     <span className="block text-xs text-muted">@{f.username}</span>
                   </span>
-                  <span className={cx("flex h-6 w-6 items-center justify-center rounded-full border-2 text-xs font-bold", on ? "border-pink bg-pink text-pink-ink" : "border-line")}>{on ? "✓" : ""}</span>
+                  <span className={cx("flex h-6 w-6 items-center justify-center rounded-full border-2 text-xs font-bold", on ? "border-pink bg-pink text-pink-ink" : "border-line")}>{on ? <IconCheck size={14} strokeWidth={2.6} /> : null}</span>
                 </button>
               );
             })}
@@ -271,7 +272,7 @@ function Form() {
       </Card>
 
       <Button type="submit" size="lg" className="w-full" loading={busy}>
-        Make the pact 🤙
+        Make the pact
       </Button>
     </form>
   );

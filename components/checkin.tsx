@@ -9,6 +9,7 @@ import { effectiveStatus } from "@/lib/stats";
 import { prettyDay } from "@/lib/dates";
 import { money } from "@/lib/money";
 import { Button, StatusPill, inputCls, useToast, cx } from "./ui";
+import { IconCamera, IconPencil } from "./icons";
 
 export async function uploadProof(pact: Pact, checkin: Checkin, userId: string, file: File) {
   const blob = await compressImage(file);
@@ -51,7 +52,7 @@ export function ProofButton({
           setBusy(true);
           try {
             await uploadProof(pact, checkin, userId, f);
-            toast("Proof posted 📸");
+            toast("Proof posted");
             onDone();
           } catch (err) {
             toast(errMsg(err), "err");
@@ -61,7 +62,8 @@ export function ProofButton({
         }}
       />
       <Button size="sm" variant={variant} loading={busy} onClick={() => ref.current?.click()}>
-        📸 {label}
+        <IconCamera size={16} />
+        {label}
       </Button>
     </>
   );
@@ -114,7 +116,7 @@ export function CheckIn({
     if (error) return toast(errMsg(error), "err");
     setEditing(false);
     if (status === "kept") {
-      toast(pact.goal_type === "weekly" ? "Logged. Keep stacking 💪" : "Kept it. Proud of you 🤙");
+      toast(pact.goal_type === "weekly" ? "Logged. Keep stacking." : "Kept it. Nice.");
     } else if (status === "off") {
       toast("Off-day used. Back at it tomorrow");
     } else {
@@ -172,7 +174,7 @@ export function CheckIn({
           </div>
         ) : (
           <Button variant="kept" size="lg" className="w-full" loading={busy === "kept"} onClick={() => submit("kept")}>
-            I did it today 💪
+            I did it today
           </Button>
         )}
         {full && c ? <NoteAndProof pact={pact} c={c} userId={userId} onChange={onChange} /> : null}
@@ -229,7 +231,7 @@ export function CheckIn({
         ) : (
           <div className="grid grid-cols-2 gap-2">
             <Button variant="kept" size="lg" loading={busy === "kept"} onClick={() => submit("kept")}>
-              Kept it 🤙
+              Kept it
             </Button>
             <Button variant="broke" size="lg" loading={busy === "broke"} onClick={() => submit("broke")}>
               Broke it
@@ -316,7 +318,8 @@ function NoteAndProof({ pact, c, userId, onChange }: { pact: Pact; c: Checkin; u
       ) : (
         <div className="flex flex-wrap gap-2">
           <Button size="sm" variant="soft" onClick={() => setOpen(true)}>
-            ✍️ {c.note ? "Edit note" : c.status === "broke" ? "Confess" : "Add a note"}
+            <IconPencil size={16} />
+            {c.note ? "Edit note" : c.status === "broke" ? "Confess" : "Add a note"}
           </Button>
           {!c.proof_path ? <ProofButton pact={pact} checkin={c} userId={userId} onDone={onChange} /> : null}
         </div>

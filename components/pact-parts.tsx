@@ -9,6 +9,7 @@ import { addDays, prettyDay, shortDay, timeAgo, weekStart, todayIn } from "@/lib
 import { money } from "@/lib/money";
 import { Avatar, Button, StatusPill, cx, useToast } from "./ui";
 import { ProofButton } from "./checkin";
+import { IconCamera, IconClock, IconEmpty, IconEye, IconFlag, IconFlame, IconNudge, IconSmilePlus, IconX } from "./icons";
 
 export const EMOJIS = ["😂", "🫡", "💀", "🫶", "😤", "🔥"];
 
@@ -39,7 +40,7 @@ export function Squad({
     setBusy(to);
     try {
       await action({ action: "nudge", pactId: pact.id, toUser: to });
-      toast(`Nudged ${name} 👉`);
+      toast(`Nudged ${name}`);
       onNudged();
     } catch (e) {
       toast(errMsg(e), "err");
@@ -64,7 +65,11 @@ export function Squad({
                 {isMe ? <span className="text-xs text-muted">(you)</span> : null}
               </div>
               <div className="flex items-center gap-2 text-xs text-muted">
-                <span>🔥 {s.streak} {stats.unit === "week" ? "wk" : "day"}{s.streak === 1 ? "" : "s"}</span>
+                <span className="flex items-center gap-0.5">
+                  <IconFlame size={13} />
+                  {s.streak} {stats.unit === "week" ? "wk" : "day"}
+                  {s.streak === 1 ? "" : "s"}
+                </span>
                 <span>·</span>
                 <span className="tabular">{money(s.owedCents)} owed</span>
                 {pact.goal_type === "weekly" && s.active && !stats.ended ? (
@@ -79,7 +84,8 @@ export function Squad({
             </div>
             {canNudge ? (
               <Button size="sm" variant="soft" loading={busy === m.user_id} onClick={() => nudge(m.user_id, m.profile.display_name)}>
-                👉 Nudge
+                <IconNudge size={16} />
+                Nudge
               </Button>
             ) : !s.active ? (
               <span className="text-xs text-muted">Starts {shortDay(s.startsOn)}</span>
@@ -164,7 +170,7 @@ export function Feed({
             <div key={`g-${it.userId}-${it.day}`}>
               {header}
               <div className="mb-2 flex items-center gap-3 rounded-2xl border border-dashed border-line px-3 py-2.5 text-sm text-muted">
-                <span className="text-lg">👻</span>
+                <IconEmpty size={20} className="shrink-0" />
                 <span>
                   <b className="text-ink">{m?.profile.display_name ?? "Someone"}</b> didn&apos;t check in. Counts as broke.
                 </span>
@@ -261,7 +267,7 @@ function FeedCard({
     setBusy("doubt");
     try {
       await action({ action: "doubt", checkinId: c.id });
-      toast("Doubt sent. They've got 24h 🤨");
+      toast("Doubt sent. They've got 24 hours.");
       setConfirmDoubt(false);
       onChange();
     } catch (e) {
@@ -276,7 +282,7 @@ function FeedCard({
     const { error } = await supabase.rpc("own_up", { p_doubt: d.id, p_note: null });
     setBusy(null);
     if (error) return toast(errMsg(error), "err");
-    toast("Respect for owning up 🫡");
+    toast("Respect for owning up.");
     onChange();
   }
 
@@ -313,16 +319,17 @@ function FeedCard({
           {doubts.map((d) => {
             const who = byId[d.doubter_id]?.profile.display_name ?? "Someone";
             const left = Math.max(0, Math.ceil((DOUBT_WINDOW_MS - (now - new Date(d.created_at).getTime())) / 3600000));
-            const text =
+            const [Icon, text]: [typeof IconEye, string] =
               d.status === "proved"
-                ? `📸 Proof posted after ${who}'s doubt`
+                ? [IconCamera, `Proof posted after ${who}'s doubt`]
                 : d.status === "confessed"
-                  ? `🫡 Owned up after ${who}'s doubt`
+                  ? [IconFlag, `Owned up after ${who}'s doubt`]
                   : doubtExpired(d, now)
-                    ? `⏰ ${who}'s doubt went unanswered. Counts as broke.`
-                    : `🤨 ${who} doubts this · ${left}h left to answer`;
+                    ? [IconClock, `${who}'s doubt went unanswered. Counts as broke.`]
+                    : [IconEye, `${who} doubts this · ${left}h left to answer`];
             return (
-              <p key={d.id} className="mt-2 text-xs font-semibold text-muted">
+              <p key={d.id} className="mt-2 flex items-center gap-1.5 text-xs font-semibold text-muted">
+                <Icon size={14} className="shrink-0" />
                 {text}
               </p>
             );
@@ -354,7 +361,7 @@ function FeedCard({
               ))}
             <div className="relative">
               <button onClick={() => setTray((t) => !t)} className="flex h-7 items-center rounded-full bg-surface-2 px-2 text-sm text-muted" aria-label="React">
-                ☺︎+
+                <IconSmilePlus size={16} />
               </button>
               {tray ? (
                 <div className="animate-pop absolute bottom-9 left-0 z-10 flex gap-1 rounded-full bg-surface p-1 shadow-card ring-1 ring-line">
@@ -375,13 +382,14 @@ function FeedCard({
                       Doubt
                     </Button>
                   ) : null}
-                  <Button size="sm" variant="ghost" onClick={() => setConfirmDoubt(false)}>
-                    ✕
+                  <Button size="sm" variant="ghost" onClick={() => setConfirmDoubt(false)} aria-label="Cancel">
+                    <IconX size={16} />
                   </Button>
                 </span>
               ) : (
-                <button onClick={() => setConfirmDoubt(true)} className="ml-auto flex h-7 items-center rounded-full px-2 text-xs font-semibold text-muted hover:bg-surface-2">
-                  🤨 Doubt
+                <button onClick={() => setConfirmDoubt(true)} className="ml-auto flex h-7 items-center gap-1 rounded-full px-2 text-xs font-semibold text-muted hover:bg-surface-2">
+                  <IconEye size={14} />
+                  Doubt
                 </button>
               )
             ) : null}
@@ -431,7 +439,7 @@ export function Ledger({ pact, stats, members }: { pact: Pact; stats: PactStats;
             </button>
             {open === m.user_id ? (
               <div className="mt-2 space-y-1 pl-12">
-                {s.misses.length === 0 ? <p className="text-sm text-muted">Clean so far 😇</p> : null}
+                {s.misses.length === 0 ? <p className="text-sm text-muted">Clean so far.</p> : null}
                 {s.misses
                   .slice()
                   .reverse()

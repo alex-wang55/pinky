@@ -29,7 +29,7 @@ export default function AddFriend() {
           result === "sent"
             ? `Request sent to @${uname}. Once they accept, you can make a pact.`
             : result === "accepted"
-              ? `You and @${uname} are friends now 🤙`
+              ? `You and @${uname} are friends now.`
               : result === "already_friends"
                 ? `You're already friends with @${uname}.`
                 : `Request to @${uname} is already waiting.`,

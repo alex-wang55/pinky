@@ -14,6 +14,7 @@ import { prettyDay, shortDay } from "@/lib/dates";
 import { money } from "@/lib/money";
 import { enablePush, isIos, isStandalone, pushSupported } from "@/lib/push-client";
 import type { Pact } from "@/lib/types";
+import { IconArrowRight, IconBell, IconEye, IconFlame, IconJar, IconMoon, IconNudge, IconPact } from "@/components/icons";
 
 export default function Home() {
   const { session, loading } = useAuth();
@@ -121,7 +122,9 @@ function Dashboard({ userId }: { userId: string }) {
       {nudges.length ? (
         <Card className="mb-3 border-pink/30 bg-pink-soft p-4">
           <div className="flex items-start gap-3">
-            <span className="text-2xl">👉</span>
+            <span className="mt-0.5 text-pink">
+              <IconNudge size={22} />
+            </span>
             <div className="flex-1 text-sm">
               {nudges.slice(0, 3).map((n) => (
                 <p key={n.id}>
@@ -141,12 +144,15 @@ function Dashboard({ userId }: { userId: string }) {
 
       {computed.doubtsOnMe.length ? (
         <Card className="mb-3 border-off/30 bg-off-soft p-4">
-          <p className="text-sm font-semibold text-off">
-            🤨 Someone doubts your check-in.{" "}
-            <Link className="underline" href={`/pacts/${computed.doubtsOnMe[0].pact_id}`}>
-              Post proof or own up
-            </Link>{" "}
-            within 24h or it counts as broke.
+          <p className="flex items-start gap-2 text-sm font-semibold text-off">
+            <IconEye size={18} className="mt-0.5 shrink-0" />
+            <span>
+              Someone doubts your check-in.{" "}
+              <Link className="underline" href={`/pacts/${computed.doubtsOnMe[0].pact_id}`}>
+                Post proof or own up
+              </Link>{" "}
+              within 24h or it counts as broke.
+            </span>
           </p>
         </Card>
       ) : null}
@@ -157,7 +163,9 @@ function Dashboard({ userId }: { userId: string }) {
             <span className="text-sm font-semibold">
               {friendReqs} friend request{friendReqs === 1 ? "" : "s"}
             </span>
-            <span className="text-sm font-semibold text-pink">See →</span>
+            <span className="flex items-center gap-1 text-sm font-semibold text-pink">
+              See <IconArrowRight size={16} />
+            </span>
           </Card>
         </Link>
       ) : null}
@@ -208,7 +216,9 @@ function Dashboard({ userId }: { userId: string }) {
                       {shortDay(p.start_date)} to {shortDay(p.end_date)} · pot {money(stats.potCents)}
                     </div>
                   </div>
-                  <span className="text-sm font-semibold text-pink">Recap →</span>
+                  <span className="flex items-center gap-1 text-sm font-semibold text-pink">
+                    Recap <IconArrowRight size={16} />
+                  </span>
                 </Card>
               </Link>
             ))}
@@ -247,7 +257,10 @@ function PactCard({
             </p>
           </div>
           <div className="text-right">
-            <div className="font-display text-2xl font-extrabold leading-none tabular">🔥{stats.groupStreak}</div>
+            <div className="flex items-center justify-end gap-1 font-display text-2xl font-extrabold leading-none tabular">
+              <IconFlame size={20} className={stats.groupStreak > 0 ? "text-pink" : "text-muted"} />
+              {stats.groupStreak}
+            </div>
             <div className="text-[10px] font-semibold uppercase tracking-wide text-muted">group {stats.unit}s</div>
           </div>
         </div>
@@ -275,7 +288,7 @@ function Invite({ pact, inviter, onDone }: { pact: Pact; inviter?: string; onDon
     const { error } = await supabase.rpc("respond_pact_invite", { p_pact: pact.id, p_accept: accept });
     setBusy(null);
     if (error) return toast(errMsg(error), "err");
-    toast(accept ? "You're in. Pinky promise 🤙" : "Declined");
+    toast(accept ? "You're in. Pinky promise." : "Declined");
     onDone();
   }
   return (
@@ -293,7 +306,7 @@ function Invite({ pact, inviter, onDone }: { pact: Pact; inviter?: string; onDon
       {pact.rules ? <p className="mt-2 rounded-xl bg-surface-2 px-3 py-2 text-sm">“{pact.rules}”</p> : null}
       <div className="mt-3 grid grid-cols-2 gap-2">
         <Button loading={busy === "y"} onClick={() => respond(true)}>
-          I&apos;m in 🤙
+          I&apos;m in
         </Button>
         <Button variant="soft" loading={busy === "n"} onClick={() => respond(false)}>
           Not this time
@@ -326,7 +339,9 @@ function PushPrompt() {
   return (
     <Card className="mb-3 p-4">
       <div className="flex items-start gap-3">
-        <span className="text-2xl">🔔</span>
+        <span className="mt-0.5 text-pink">
+          <IconBell size={22} />
+        </span>
         <div className="flex-1">
           <p className="font-semibold">Get nudges and reminders</p>
           <p className="text-sm text-muted">
@@ -343,7 +358,7 @@ function PushPrompt() {
                   setBusy(true);
                   try {
                     await enablePush();
-                    toast("Notifications on 🔔");
+                    toast("Notifications on");
                     setState("hidden");
                   } catch (e) {
                     toast(errMsg(e), "err");
@@ -366,6 +381,14 @@ function PushPrompt() {
 }
 
 /* ------------------------------------------------------------------ */
+const FEATURES = [
+  { Icon: IconPact, t: "Make a pact", d: "No junk food, 10k steps, gym 4x a week. Set the stakes and what counts as breaking it." },
+  { Icon: IconMoon, t: "Check in by midnight", d: "Kept it or broke it. Skip the check-in and it counts as broke, so no quietly ghosting." },
+  { Icon: IconFlame, t: "Keep the group streak", d: "One shared streak. If anyone breaks, it resets for everyone. That's the peer pressure." },
+  { Icon: IconJar, t: "Slip? Pay the pot", d: "Each miss adds to a pot that goes wherever you agreed. Settle up when the pact ends." },
+  { Icon: IconEye, t: "Doubt and confess", d: "One doubt a week: they post a photo or own up. Confessions get reactions, not shame." },
+];
+
 function Landing() {
   return (
     <div className="mx-auto max-w-lg px-5 pb-16">
@@ -401,22 +424,21 @@ function Landing() {
         </div>
       </section>
 
-      <section className="mt-16 space-y-3">
-        {[
-          ["🤙", "Make a pact", "No junk food, 10k steps, gym 4x a week. Set the stakes and what counts as breaking it."],
-          ["🌙", "Check in by midnight", "Kept it or broke it. Skip the check-in and it counts as broke, so no quietly ghosting."],
-          ["🔥", "Keep the group streak", "One shared streak. If anyone breaks, it resets for everyone. That's the peer pressure."],
-          ["💸", "Slip? Pay the pot", "Each miss adds to a pot that goes wherever you agreed. Settle up when the pact ends."],
-          ["🤨", "Doubt and confess", "One doubt a week: they post a photo or own up. Confessions get reactions, not shame."],
-        ].map(([e, t, d]) => (
-          <Card key={t} className="flex gap-4 p-4">
-            <span className="text-3xl">{e}</span>
-            <div>
-              <h3 className="font-display text-lg font-bold">{t}</h3>
-              <p className="text-sm text-muted">{d}</p>
+      <section className="mt-16">
+        <h2 className="mb-3 px-1 text-[13px] font-bold uppercase tracking-wider text-muted">How it works</h2>
+        <Card className="divide-y divide-line px-4">
+          {FEATURES.map(({ Icon, t, d }) => (
+            <div key={t} className="flex gap-4 py-4">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-pink-soft text-pink">
+                <Icon size={20} />
+              </span>
+              <div>
+                <h3 className="font-display text-lg font-bold leading-tight">{t}</h3>
+                <p className="mt-0.5 text-sm text-muted">{d}</p>
+              </div>
             </div>
-          </Card>
-        ))}
+          ))}
+        </Card>
       </section>
 
       <div className="mt-10 text-center">

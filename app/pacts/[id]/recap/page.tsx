@@ -10,6 +10,7 @@ import { loadBundle, type Bundle } from "@/lib/data";
 import { computePact, doubtExpired, goalLabel } from "@/lib/stats";
 import { shortDay } from "@/lib/dates";
 import { money } from "@/lib/money";
+import { IconFlag, IconFlame, IconGhost, IconJar, IconSearch, IconTrophy } from "@/components/icons";
 
 export default function RecapPage() {
   const { id } = useParams<{ id: string }>();
@@ -49,12 +50,12 @@ function Recap({ id }: { id: string }) {
       return best && score(best) >= min ? best : null;
     };
     const awards = [
-      { icon: "🏆", title: "Iron will", who: pick(people, (p) => (p.s.decided ? p.rate : -1), 0), why: (p: (typeof people)[0]) => `${Math.round(p.rate * 100)}% kept` },
-      { icon: "🔥", title: "Longest streak", who: pick(people, (p) => p.s.bestStreak), why: (p: (typeof people)[0]) => `${p.s.bestStreak} ${stats.unit}s` },
-      { icon: "🫡", title: "Most honest", who: pick(people, (p) => p.s.confessions), why: (p: (typeof people)[0]) => `${p.s.confessions} confession${p.s.confessions === 1 ? "" : "s"}` },
-      { icon: "🕵️", title: "Detective", who: pick(people, (p) => p.doubtsWon), why: (p: (typeof people)[0]) => `${p.doubtsWon} doubt${p.doubtsWon === 1 ? "" : "s"} landed` },
-      { icon: "👻", title: "The ghost", who: pick(people, (p) => p.s.autoMisses), why: (p: (typeof people)[0]) => `${p.s.autoMisses} no-show${p.s.autoMisses === 1 ? "" : "s"}` },
-      { icon: "💸", title: "Biggest donor", who: pick(people, (p) => p.s.owedCents), why: (p: (typeof people)[0]) => money(p.s.owedCents) },
+      { Icon: IconTrophy, title: "Iron will", who: pick(people, (p) => (p.s.decided ? p.rate : -1), 0), why: (p: (typeof people)[0]) => `${Math.round(p.rate * 100)}% kept` },
+      { Icon: IconFlame, title: "Longest streak", who: pick(people, (p) => p.s.bestStreak), why: (p: (typeof people)[0]) => `${p.s.bestStreak} ${stats.unit}s` },
+      { Icon: IconFlag, title: "Most honest", who: pick(people, (p) => p.s.confessions), why: (p: (typeof people)[0]) => `${p.s.confessions} confession${p.s.confessions === 1 ? "" : "s"}` },
+      { Icon: IconSearch, title: "Detective", who: pick(people, (p) => p.doubtsWon), why: (p: (typeof people)[0]) => `${p.doubtsWon} doubt${p.doubtsWon === 1 ? "" : "s"} landed` },
+      { Icon: IconGhost, title: "The ghost", who: pick(people, (p) => p.s.autoMisses), why: (p: (typeof people)[0]) => `${p.s.autoMisses} no-show${p.s.autoMisses === 1 ? "" : "s"}` },
+      { Icon: IconJar, title: "Biggest donor", who: pick(people, (p) => p.s.owedCents), why: (p: (typeof people)[0]) => money(p.s.owedCents) },
     ].filter((a) => a.who);
 
     return { pact, stats, people: people.sort((x, y) => y.rate - x.rate || x.s.owedCents - y.s.owedCents), awards };
@@ -109,7 +110,7 @@ function Recap({ id }: { id: string }) {
             <div className="mt-6 grid grid-cols-2 gap-2">
               {awards.map((a) => (
                 <div key={a.title} className="rounded-2xl bg-surface-2 p-3">
-                  <div className="text-2xl">{a.icon}</div>
+                  <a.Icon size={22} className="text-pink" />
                   <div className="mt-1 text-xs font-bold uppercase tracking-wide text-muted">{a.title}</div>
                   <div className="font-semibold">{a.who!.m.profile.display_name}</div>
                   <div className="text-xs text-muted">{a.why(a.who!)}</div>

@@ -19,7 +19,7 @@ const variants: Record<NonNullable<BtnProps["variant"]>, string> = {
   primary: "bg-pink text-pink-ink hover:brightness-105 active:brightness-95",
   ghost: "bg-transparent text-ink hover:bg-surface-2",
   soft: "bg-surface-2 text-ink hover:brightness-[0.98]",
-  kept: "bg-kept text-white hover:brightness-105",
+  kept: "bg-kept text-kept-ink hover:brightness-105",
   broke: "bg-broke-soft text-broke hover:brightness-[0.98]",
   off: "bg-off-soft text-off hover:brightness-[0.98]",
   danger: "bg-broke text-white hover:brightness-105",

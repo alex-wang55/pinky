@@ -15,6 +15,7 @@ import { computePact, goalLabel } from "@/lib/stats";
 import { prettyDay, shortDay } from "@/lib/dates";
 import { money } from "@/lib/money";
 import type { Profile } from "@/lib/types";
+import { IconArrowRight, IconChart, IconFlame } from "@/components/icons";
 
 export default function PactPage() {
   return (
@@ -125,7 +126,15 @@ function PactView() {
           ) : null}
         </div>
         <div className="grid grid-cols-3 divide-x divide-line border-t border-line">
-          <Stat label={`Group ${stats.unit}s`} value={`🔥${stats.groupStreak}`} />
+          <Stat
+            label={`Group ${stats.unit}s`}
+            value={
+              <span className="inline-flex items-center gap-1">
+                <IconFlame size={18} className={stats.groupStreak > 0 ? "text-pink" : "text-muted"} />
+                {stats.groupStreak}
+              </span>
+            }
+          />
           <Stat label="Best streak" value={String(stats.bestGroupStreak)} />
           <Stat label="Pot" value={money(stats.potCents)} />
         </div>
@@ -139,11 +148,11 @@ function PactView() {
               onClick={async () => {
                 const { error } = await supabase.rpc("respond_pact_invite", { p_pact: pact.id, p_accept: true });
                 if (error) return toast(errMsg(error), "err");
-                toast("You're in 🤙");
+                toast("You're in.");
                 load();
               }}
             >
-              I&apos;m in 🤙
+              I&apos;m in
             </Button>
             <Button
               variant="soft"
@@ -169,8 +178,8 @@ function PactView() {
           ) : (
             <Link href={`/pacts/${pact.id}/recap`} className="mt-3 block">
               <Card className="flex items-center justify-between bg-ink p-4 text-bg">
-                <span className="font-display text-lg font-bold">See the final recap 🏁</span>
-                <span>→</span>
+                <span className="font-display text-lg font-bold">See the final recap</span>
+                <IconArrowRight size={20} />
               </Card>
             </Link>
           )}
@@ -222,7 +231,7 @@ function Chip({ children }: { children: React.ReactNode }) {
   return <span className="rounded-full bg-surface/80 px-2.5 py-1 ring-1 ring-line">{children}</span>;
 }
 
-function Stat({ label, value }: { label: string; value: string }) {
+function Stat({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <div className="px-2 py-3 text-center">
       <div className="font-display text-xl font-extrabold tabular">{value}</div>
@@ -256,8 +265,11 @@ function InfoTab({ pactId, isCreator, ended, memberIds, onChange }: { pactId: st
     <div className="space-y-3">
       <Link href={`/pacts/${pactId}/recap`}>
         <Card className="flex items-center justify-between p-4">
-          <span className="font-semibold">{ended ? "Final recap" : "Recap so far"} 📊</span>
-          <span className="text-pink">→</span>
+          <span className="flex items-center gap-2 font-semibold">
+            <IconChart size={18} className="text-pink" />
+            {ended ? "Final recap" : "Recap so far"}
+          </span>
+          <IconArrowRight size={18} className="text-pink" />
         </Card>
       </Link>
 

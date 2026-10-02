@@ -14,7 +14,7 @@ export async function GET(req: Request) {
   let sent = 0;
   for (const t of targets) {
     sent += await sendTo([t], {
-      title: "Did you keep it today? 🤙",
+      title: "Did you keep it today?",
       body: `Still open: ${t.pact_names}. Midnight is the cutoff.`,
       url: "/",
       tag: "daily-reminder",

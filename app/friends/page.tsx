@@ -7,6 +7,7 @@ import { Avatar, Button, Card, SectionTitle, inputCls, useToast } from "@/compon
 import { supabase, errMsg } from "@/lib/supabase";
 import { action } from "@/lib/api";
 import type { Profile } from "@/lib/types";
+import { IconX } from "@/components/icons";
 
 type Row = { id: string; status: "pending" | "accepted"; requester: string; addressee: string; other: Profile; incoming: boolean };
 
@@ -60,7 +61,7 @@ function Friends() {
     try {
       const { result } = await action<{ result: string }>({ action: "friend_request", username: u });
       toast(
-        result === "sent" ? `Request sent to @${u}` : result === "accepted" ? `You and @${u} are friends now 🤙` : result === "already_friends" ? "Already friends" : "Request already sent",
+        result === "sent" ? `Request sent to @${u}` : result === "accepted" ? `You and @${u} are friends now` : result === "already_friends" ? "Already friends" : "Request already sent",
       );
       setUsername("");
       load();
@@ -162,7 +163,7 @@ function Friends() {
                   Accept
                 </Button>
                 <Button size="sm" variant="ghost" onClick={() => respond(r.id, false)} aria-label="Decline">
-                  ✕
+                  <IconX size={16} />
                 </Button>
               </div>
             ))}
