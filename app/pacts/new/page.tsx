@@ -1,10 +1,10 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useEffect, useState } from "react";
 import { Shell } from "@/components/shell";
 import { useAuth } from "@/components/auth";
-import { Avatar, Button, Card, Field, Segmented, Stepper, Toggle, inputCls, cx, useToast } from "@/components/ui";
+import { Avatar, Button, Card, Field, PageLoader, Segmented, Stepper, Toggle, inputCls, cx, useToast } from "@/components/ui";
 import { supabase, errMsg } from "@/lib/supabase";
 import { action } from "@/lib/api";
 import { addDays, diffDays, localTz, todayIn } from "@/lib/dates";
@@ -22,7 +22,9 @@ const LENGTHS = [
 export default function NewPact() {
   return (
     <Shell title="New pact" back="/" wide>
-      <Form />
+      <Suspense fallback={<PageLoader />}>
+        <Form />
+      </Suspense>
     </Shell>
   );
 }
@@ -30,6 +32,8 @@ export default function NewPact() {
 function Form() {
   const { session } = useAuth();
   const router = useRouter();
+  const sp = useSearchParams();
+  const withId = sp.get("with");
   const toast = useToast();
   const tz = localTz();
   const today = todayIn(tz);
@@ -48,7 +52,8 @@ function Form() {
   const [start, setStart] = useState(today);
   const [end, setEnd] = useState(addDays(today, 55));
   const [friends, setFriends] = useState<Profile[]>([]);
-  const [invite, setInvite] = useState<Set<string>>(new Set());
+  // "Start a pact" on the Friends tab lands here with ?with=<their id> already ticked.
+  const [invite, setInvite] = useState<Set<string>>(() => new Set(withId ? [withId] : []));
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
@@ -61,10 +66,13 @@ function Form() {
         .eq("status", "accepted");
       const list = (data ?? []).map((f) => ((f.requester === me ? f.a : f.r) as unknown as Profile));
       setFriends(list.sort((x, y) => x.display_name.localeCompare(y.display_name)));
+      // Drop the pre-selected person if they turn out not to be a friend.
+      setInvite((cur) => new Set([...cur].filter((id) => list.some((f) => f.id === id))));
     })();
   }, [session?.user.id]);
 
   const lengthDays = diffDays(end, start) + 1;
+  const withFriend = withId && invite.has(withId) ? friends.find((f) => f.id === withId) : undefined;
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -102,6 +110,7 @@ function Form() {
   return (
     <form onSubmit={submit} className="space-y-4">
       <h1 className="px-1 font-display text-[28px] font-bold">Make a pact</h1>
+      {withFriend ? <p className="-mt-2 px-1 text-muted">With {withFriend.display_name.split(" ")[0]}{invite.size > 1 ? ` and ${invite.size - 1} more` : ""}. Pick the goal and the stakes.</p> : null}
 
       <div className="space-y-4 lg:grid lg:grid-cols-2 lg:items-start lg:gap-4 lg:space-y-0">
       <div className="space-y-4">
