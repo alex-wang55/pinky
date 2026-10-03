@@ -11,7 +11,7 @@ import { loadBundle, type Bundle } from "@/lib/data";
 export default function WeekPage() {
   const { id } = useParams<{ id: string }>();
   return (
-    <Shell title="Pact" back={`/pacts/${id}`}>
+    <Shell title="Pact" back={`/pacts/${id}`} wide>
       <Suspense fallback={<PageLoader />}>
         <Week id={id} />
       </Suspense>

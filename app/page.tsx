@@ -4,26 +4,26 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/components/auth";
 import { Shell } from "@/components/shell";
-import { Avatar, Button, Card, IconButton, LargeTitle, List, PageLoader, Row, SectionTitle, Sheet, Tile, cx, useToast } from "@/components/ui";
+import { Avatar, Button, Card, PageLoader, SectionTitle, StatusPill, useToast } from "@/components/ui";
 import { CheckIn } from "@/components/checkin";
-import { Wordmark } from "@/components/logo";
+import { LogoMark } from "@/components/logo";
 import { supabase, errMsg } from "@/lib/supabase";
 import { loadBundle, type Bundle } from "@/lib/data";
 import { computePact, doubtExpired, goalLabel, wrapWeek, type PactStats } from "@/lib/stats";
 import { addDays, dayOfWeek, prettyDay, shortDay } from "@/lib/dates";
-import { joinAnd } from "@/lib/wrap-story";
 import { money } from "@/lib/money";
 import { enablePush, isIos, isStandalone, pushSupported } from "@/lib/push-client";
 import type { Pact } from "@/lib/types";
-import { IconBell, IconCalendar, IconChevronRight, IconEye, IconFlame, IconMore, IconNudge, IconPlus, IconPlusUser, IconSpark, IconX } from "@/components/icons";
+import { IconArrowRight, IconBell, IconCalendar, IconEye, IconFlame, IconJar, IconMoon, IconNudge, IconPact, IconSpark, IconTrash } from "@/components/icons";
 import { Pet, petState } from "@/components/pet";
+import { PactGlyph, PactIcon, pactTint } from "@/components/pact-icon";
 
 export default function Home() {
   const { session, loading } = useAuth();
   if (loading) return <PageLoader />;
   if (!session) return <Landing />;
   return (
-    <Shell>
+    <Shell wide>
       <Dashboard userId={session.user.id} />
     </Shell>
   );
@@ -125,126 +125,129 @@ function Dashboard({ userId }: { userId: string }) {
     await supabase.rpc("mark_nudges_seen");
   }
 
-
   if (!computed || !bundle) return <PageLoader />;
   const pending = computed.active.filter((r) => r.stats.members[userId]?.today === "pending").length;
-  const todayLabel = new Intl.DateTimeFormat("en-US", { weekday: "long", month: "long", day: "numeric" }).format(new Date());
-  const firstName = profile?.display_name?.split(" ")[0];
-
-  // Group hypes by pact + streak so three friends hyping the same streak read as one line.
-  const hypeGroups = Object.values(
-    hypesIn.reduce<Record<string, HypeIn[]>>((acc, h) => {
-      (acc[`${h.pact_id}|${h.streak}`] ||= []).push(h);
-      return acc;
-    }, {}),
-  );
-  const hasUpdates = hypeGroups.length || nudges.length || computed.doubtsOnMe.length || friendReqs > 0 || computed.wraps.length;
 
   return (
     <div>
-      <LargeTitle
-        eyebrow={todayLabel}
-        title="Pacts"
-        sub={
-          computed.active.length === 0
-            ? firstName
-              ? `Hey ${firstName}. Nothing on the go yet.`
-              : "Nothing on the go yet."
+      <div className="mb-5 px-1">
+        <h1 className="font-display text-[28px] font-bold leading-tight">Hey {profile?.display_name?.split(" ")[0] ?? "there"}</h1>
+        <p className="text-muted">
+          {computed.active.length === 0
+            ? "No active pacts yet."
             : pending === 0
-              ? "You're checked in everywhere today."
-              : `${pending === 1 ? "One pact is" : `${pending} pacts are`} waiting on you today.`
-        }
-        action={
-          <IconButton tone="primary" href="/pacts/new" label="New pact" className="h-10 w-10">
-            <IconPlus size={20} strokeWidth={2.4} />
-          </IconButton>
-        }
-      />
+              ? "You're all checked in today. Nice."
+              : `${pending} pact${pending === 1 ? "" : "s"} waiting on you today.`}
+        </p>
+      </div>
 
-      {hasUpdates ? (
-        <List inset={60} className="mb-4">
-          {computed.doubtsOnMe.length ? (
-            <Row
-              href={`/pacts/${computed.doubtsOnMe[0].pact_id}`}
-              leading={
-                <Tile tone="off">
-                  <IconEye size={18} />
-                </Tile>
-              }
-              title="Someone doubts your check-in"
-              subtitle="Post a photo or own up within 24 hours, or it counts as broke."
-              chevron
-            />
-          ) : null}
-          {hypeGroups.slice(0, 3).map((group) => {
-            const h = group[0];
-            const names = group.map((g) => g.from?.display_name.split(" ")[0]).filter(Boolean) as string[];
-            const who = names.length > 2 ? `${names.slice(0, 2).join(", ")} and ${names.length - 2} more` : joinAnd(names);
-            return (
-              <Row
-                key={h.id}
-                leading={
-                  <Tile>
-                    <IconSpark size={18} />
-                  </Tile>
-                }
-                title={`${who} hyped your ${h.streak}-${h.pact?.goal_type === "weekly" ? "week" : "day"} streak`}
-                subtitle={`${h.pact?.emoji ?? ""} ${h.pact?.name ?? ""}`}
-                trailing={
-                  <Button size="sm" variant="plain" onClick={dismissHypes}>
-                    Thanks
-                  </Button>
-                }
-              />
-            );
-          })}
-          {nudges.length ? (
-            <Row
-              leading={
-                <Tile>
-                  <IconNudge size={18} />
-                </Tile>
-              }
-              title={
-                <Link href={`/pacts/${nudges[0].pact_id}`}>
-                  {joinAnd([...new Set(nudges.map((n) => n.from?.display_name.split(" ")[0]).filter(Boolean) as string[])].slice(0, 3))} nudged you
-                </Link>
-              }
-              subtitle={`${nudges[0].pact?.emoji ?? ""} ${nudges[0].pact?.name ?? ""}${nudges.length > 1 ? ` and ${nudges.length - 1} more` : ""}`}
-              trailing={
-                <Button size="sm" variant="plain" onClick={dismissNudges}>
-                  Got it
-                </Button>
-              }
-            />
-          ) : null}
-          {computed.wraps.map(({ p }) => (
-            <Row
-              key={`wrap-${p.id}`}
-              href={`/pacts/${p.id}/week`}
-              leading={
-                <Tile>
-                  <IconCalendar size={18} />
-                </Tile>
-              }
-              title="Your weekly wrap is in"
-              subtitle={`${p.emoji} ${p.name}`}
-              chevron
-            />
-          ))}
-          {friendReqs > 0 ? (
-            <Row
-              href="/friends"
-              leading={
-                <Tile tone="grey">
-                  <IconPlusUser size={18} />
-                </Tile>
-              }
-              title={`${friendReqs} friend request${friendReqs === 1 ? "" : "s"}`}
-              chevron
-            />
-          ) : null}
-        </List>
+      <div className="lg:grid lg:grid-cols-2 lg:gap-x-4">
+      {hypesIn.length ? (
+        <Card className="mb-3 border-pink/30 bg-pink-soft p-4">
+          <div className="flex items-start gap-3">
+            <span className="mt-0.5 text-pink">
+              <IconSpark size={22} />
+            </span>
+            <div className="flex-1 text-sm">
+              {Object.values(
+                hypesIn.reduce<Record<string, HypeIn[]>>((acc, h) => {
+                  (acc[`${h.pact_id}|${h.streak}`] ||= []).push(h);
+                  return acc;
+                }, {}),
+              )
+                .slice(0, 3)
+                .map((group) => {
+                  const h = group[0];
+                  const names = group.map((g) => g.from?.display_name).filter(Boolean);
+                  const who = names.length > 2 ? `${names.slice(0, 2).join(", ")} and ${names.length - 2} more` : names.join(" and ");
+                  return (
+                    <p key={h.id}>
+                      <b>{who}</b> hyped your {h.streak}-{h.pact?.goal_type === "weekly" ? "week" : "day"} streak in{" "}
+                      <Link className="font-semibold underline" href={`/pacts/${h.pact_id}`}>
+                        {h.pact?.name}
+                      </Link>
+                    </p>
+                  );
+                })}
+            </div>
+            <button className="text-sm font-semibold text-pink" onClick={dismissHypes}>
+              Thanks
+            </button>
+          </div>
+        </Card>
+      ) : null}
+
+      {computed.wraps.length ? (
+        <Card className="mb-3 p-4">
+          <div className="flex items-center gap-2 font-semibold">
+            <IconCalendar size={18} className="text-pink" />
+            Your weekly wrap is in
+          </div>
+          <div className="mt-2 divide-y divide-line">
+            {computed.wraps.map(({ p }) => (
+              <Link key={p.id} href={`/pacts/${p.id}/week`} className="flex items-center justify-between py-2 text-sm">
+                <span className="flex items-center gap-2">
+                  <PactGlyph emoji={p.emoji} size={16} className={pactTint(p.emoji)} />
+                  {p.name}
+                </span>
+                <span className="flex items-center gap-1 font-semibold text-pink">
+                  See the week <IconArrowRight size={14} />
+                </span>
+              </Link>
+            ))}
+          </div>
+        </Card>
+      ) : null}
+
+      {nudges.length ? (
+        <Card className="mb-3 border-pink/30 bg-pink-soft p-4">
+          <div className="flex items-start gap-3">
+            <span className="mt-0.5 text-pink">
+              <IconNudge size={22} />
+            </span>
+            <div className="flex-1 text-sm">
+              {nudges.slice(0, 3).map((n) => (
+                <p key={n.id}>
+                  <b>{n.from?.display_name}</b> nudged you about{" "}
+                  <Link className="font-semibold underline" href={`/pacts/${n.pact_id}`}>
+                    {n.pact?.name}
+                  </Link>
+                </p>
+              ))}
+            </div>
+            <button className="text-sm font-semibold text-pink" onClick={dismissNudges}>
+              Got it
+            </button>
+          </div>
+        </Card>
+      ) : null}
+
+      {computed.doubtsOnMe.length ? (
+        <Card className="mb-3 border-off/30 bg-off-soft p-4">
+          <p className="flex items-start gap-2 text-sm font-semibold text-off">
+            <IconEye size={18} className="mt-0.5 shrink-0" />
+            <span>
+              Someone doubts your check-in.{" "}
+              <Link className="underline" href={`/pacts/${computed.doubtsOnMe[0].pact_id}`}>
+                Post proof or own up
+              </Link>{" "}
+              within 24h or it counts as broke.
+            </span>
+          </p>
+        </Card>
+      ) : null}
+
+      {friendReqs > 0 ? (
+        <Link href="/friends" className="mb-3 block">
+          <Card className="flex items-center justify-between p-4">
+            <span className="text-sm font-semibold">
+              {friendReqs} friend request{friendReqs === 1 ? "" : "s"}
+            </span>
+            <span className="flex items-center gap-1 text-sm font-semibold text-pink">
+              See <IconArrowRight size={16} />
+            </span>
+          </Card>
+        </Link>
       ) : null}
 
       <PushPrompt />
@@ -253,27 +256,29 @@ function Dashboard({ userId }: { userId: string }) {
         <Invite key={p.id} pact={p} inviter={members.find((m) => m.user_id === members.find((x) => x.user_id === userId)?.invited_by)?.profile.display_name} onDone={load} />
       ))}
 
+      </div>
+
       {computed.active.length === 0 && computed.invites.length === 0 ? (
-        <Card className="flex flex-col items-center px-6 pb-6 pt-4 text-center">
-          <Pet stage={0} mood="waiting" size={96} />
-          <h2 className="mt-1 text-[20px] font-bold">Start your first pact</h2>
-          <p className="mx-auto mt-1 max-w-xs text-[15px] text-muted">
-            {hasFriends ? "Pick a goal, put a price on slipping, and bring your friends in." : "Add a friend first, or start one solo and invite people later."}
+        <Card className="p-6 text-center">
+          <div className="mx-auto mb-3 w-fit">
+            <LogoMark size={56} />
+          </div>
+          <h2 className="font-display text-xl font-bold">Make your first pact</h2>
+          <p className="mx-auto mt-1 max-w-xs text-sm text-muted">
+            {hasFriends ? "Pick a goal, set the stakes, and invite your friends." : "Start by adding a friend. Then make a pact together."}
           </p>
-          <div className="mt-5 flex w-full max-w-xs flex-col gap-2">
-            <Button href="/pacts/new" size="lg">
-              New pact
-            </Button>
+          <div className="mt-4 flex justify-center gap-2">
+            {hasFriends ? <Button href="/pacts/new">New pact</Button> : <Button href="/friends">Add a friend</Button>}
             {hasFriends ? null : (
-              <Button href="/friends" size="lg" variant="soft">
-                Add a friend
+              <Button href="/pacts/new" variant="soft">
+                Solo pact
               </Button>
             )}
           </div>
         </Card>
       ) : null}
 
-      <div className="space-y-3">
+      <div className="space-y-3 lg:grid lg:grid-cols-2 lg:items-start lg:gap-4 lg:space-y-0">
         {computed.active.map(({ p, members, stats }) => (
           <PactCard key={p.id} pact={p} stats={stats} members={members} userId={userId} doubts={bundle.doubts.filter((d) => d.pact_id === p.id)} onChange={load} />
         ))}
@@ -281,31 +286,29 @@ function Dashboard({ userId }: { userId: string }) {
 
       {computed.done.length || computed.hiddenDone.length ? (
         <>
-          <SectionTitle
-            right={
-              computed.hiddenDone.length ? (
-                <Button size="sm" variant="plain" onClick={() => setShowHidden((v) => !v)}>
-                  {showHidden ? "Hide hidden" : `Show hidden (${computed.hiddenDone.length})`}
-                </Button>
-              ) : null
-            }
-          >
-            Finished
-          </SectionTitle>
-          {computed.done.length || showHidden ? (
-            <List inset={68}>
-              {computed.done.map(({ p, stats, members }) => (
-                <FinishedRow key={p.id} pact={p} stats={stats} members={members} userId={userId} onChange={load} />
-              ))}
-              {showHidden
-                ? computed.hiddenDone.map(({ p, stats, members }) => (
+          <SectionTitle>Finished</SectionTitle>
+          <div className="space-y-2 lg:grid lg:grid-cols-2 lg:gap-2 lg:space-y-0">
+            {computed.done.map(({ p, stats, members }) => (
+              <FinishedRow key={p.id} pact={p} stats={stats} members={members} userId={userId} onChange={load} />
+            ))}
+            {computed.done.length === 0 ? <p className="px-1 text-sm text-muted">Nothing here. Hidden pacts are below.</p> : null}
+          </div>
+          {computed.hiddenDone.length ? (
+            <div className="mt-3">
+              <button className="px-1 text-sm font-semibold text-muted hover:text-ink" onClick={() => setShowHidden((v) => !v)}>
+                {showHidden
+                  ? "Collapse hidden pacts"
+                  : `Show ${computed.hiddenDone.length} hidden pact${computed.hiddenDone.length === 1 ? "" : "s"}`}
+              </button>
+              {showHidden ? (
+                <div className="mt-2 space-y-2 lg:grid lg:grid-cols-2 lg:gap-2 lg:space-y-0">
+                  {computed.hiddenDone.map(({ p, stats, members }) => (
                     <FinishedRow key={p.id} pact={p} stats={stats} members={members} userId={userId} onChange={load} hidden />
-                  ))
-                : null}
-            </List>
-          ) : (
-            <p className="px-1 text-[15px] text-muted">Everything finished is hidden.</p>
-          )}
+                  ))}
+                </div>
+              ) : null}
+            </div>
+          ) : null}
         </>
       ) : null}
     </div>
@@ -329,56 +332,40 @@ function PactCard({
 }) {
   const active = members.filter((m) => m.status === "active");
   const pet = petState(pact, stats);
-  const counted = active.filter((m) => stats.members[m.user_id]?.active);
-  const inToday = counted.filter((m) => {
-    const t = stats.members[m.user_id]?.today;
-    return t && t !== "pending";
-  }).length;
-  const weekly = pact.goal_type === "weekly";
   return (
-    <Card className="overflow-hidden">
-      <Link href={`/pacts/${pact.id}`} className="tap block px-4 pb-3 pt-3.5">
-        <div className="flex items-center gap-3">
-          <span className="-my-2 -ml-1.5 shrink-0">
-            <Pet stage={pet.stage} mood={pet.mood} size={56} />
+    <Card className="p-4">
+      <Link href={`/pacts/${pact.id}`} className="block">
+        <div className="flex items-start gap-3">
+          <span className="-my-1 -ml-1 shrink-0">
+            <Pet stage={pet.stage} mood={pet.mood} size={60} />
           </span>
           <div className="min-w-0 flex-1">
-            <h3 className="truncate text-[17px] font-semibold leading-snug">
-              {pact.emoji} {pact.name}
+            <h3 className="flex items-center gap-1.5 font-display text-lg font-bold leading-tight">
+              <PactGlyph emoji={pact.emoji} size={18} className={"shrink-0 " + pactTint(pact.emoji)} />
+              <span className="truncate">{pact.name}</span>
             </h3>
-            <p className="text-[13px] text-muted">
-              {stats.started ? `Day ${stats.dayNumber} of ${stats.totalDays}` : `Starts ${prettyDay(pact.start_date, stats.today)}`} · {money(pact.stake_cents)} a miss
+            <p className="text-xs text-muted">
+              {stats.started ? `Day ${stats.dayNumber} of ${stats.totalDays}` : `Starts ${prettyDay(pact.start_date, stats.today)}`} · {goalLabel(pact)} · {money(pact.stake_cents)}/miss
             </p>
           </div>
           <div className="text-right">
-            <div className="flex items-center justify-end gap-0.5 text-[20px] font-bold leading-none tabular">
-              <IconFlame size={18} className={stats.groupStreak > 0 ? "text-pink" : "text-faint"} />
+            <div className="flex items-center justify-end gap-1 font-display text-2xl font-bold leading-none tabular">
+              <IconFlame size={20} className={stats.groupStreak > 0 ? "text-pink" : "text-muted"} />
               {stats.groupStreak}
             </div>
-            <div className="mt-0.5 text-[11px] text-muted">{stats.unit} streak</div>
+            <div className="text-[10px] font-semibold uppercase tracking-wide text-muted">group {stats.unit}s</div>
           </div>
-          <IconChevronRight size={18} className="-mr-1 shrink-0 text-faint" />
         </div>
-        <div className="mt-3 flex items-center gap-2">
-          <div className="flex gap-1.5">
-            {active.slice(0, 6).map((m) => {
-              const st = stats.members[m.user_id]?.today;
-              return <Avatar key={m.user_id} profile={m.profile} size={26} badge={weekly || !st || st === "pending" ? null : st} />;
-            })}
-          </div>
-          <span className="text-[13px] text-muted">
-            {!stats.started
-              ? `${active.length} ${active.length === 1 ? "person" : "people"} in`
-              : weekly
-                ? `${active.length} ${active.length === 1 ? "person" : "people"} in`
-                : inToday === counted.length
-                  ? "Everyone's in today"
-                  : `${inToday} of ${counted.length} in today`}
-          </span>
-          <span className="ml-auto text-[13px] tabular text-muted">{money(stats.potCents)} pot</span>
+        <div className="mt-3 flex items-center gap-1.5">
+          {active.map((m) => {
+            const st = stats.members[m.user_id]?.today;
+            const ring = st === "kept" ? "ring-2 ring-kept ring-offset-2 ring-offset-surface" : st === "broke" ? "ring-2 ring-broke ring-offset-2 ring-offset-surface" : st === "off" ? "ring-2 ring-off ring-offset-2 ring-offset-surface" : "opacity-60";
+            return <Avatar key={m.user_id} profile={m.profile} size={28} ring={ring} />;
+          })}
+          <span className="ml-auto text-xs text-muted">pot {money(stats.potCents)}</span>
         </div>
       </Link>
-      <div className="border-t border-line px-4 py-3">
+      <div className="mt-4 border-t border-line pt-4">
         <CheckIn pact={pact} stats={stats} userId={userId} doubts={doubts} onChange={onChange} />
       </div>
     </Card>
@@ -422,47 +409,73 @@ function FinishedRow({
     setBusy(null);
     if (error) return toast(errMsg(error), "err");
     toast("Pact deleted");
-    setOpen(false);
     onChange();
   }
 
   return (
-    <div className="flex items-center pr-2">
-      <Link href={`/pacts/${pact.id}/recap`} className={cx("tap flex min-w-0 flex-1 items-center gap-3 py-2.5 pl-4", hidden && "opacity-60")}>
-        <Tile tone="grey" size={40}>
-          <span className="text-[22px]">{pact.emoji}</span>
-        </Tile>
-        <span className="min-w-0 flex-1">
-          <span className="block truncate text-[16px] font-medium">{pact.name}</span>
-          <span className="block text-[13px] text-muted">
-            {shortDay(pact.start_date)} to {shortDay(pact.end_date)} · {money(stats.potCents)} pot
+    <Card className={hidden ? "opacity-70" : ""}>
+      <div className="flex items-center gap-3 p-4">
+        <Link href={`/pacts/${pact.id}/recap`} className="flex min-w-0 flex-1 items-center gap-3">
+          <PactIcon emoji={pact.emoji} size={40} />
+          <div className="min-w-0 flex-1">
+            <div className="truncate font-semibold">{pact.name}</div>
+            <div className="text-xs text-muted">
+              {shortDay(pact.start_date)} to {shortDay(pact.end_date)} · pot {money(stats.potCents)}
+            </div>
+          </div>
+          <span className="flex items-center gap-1 text-sm font-semibold text-pink">
+            Recap <IconArrowRight size={16} />
           </span>
-        </span>
-      </Link>
-      {hidden ? (
-        <Button size="sm" variant="plain" loading={busy === "unhide"} onClick={() => setHidden(false)} className="!px-3">
-          Unhide
-        </Button>
-      ) : (
-        <IconButton tone="ghost" label={`Remove ${pact.name}`} onClick={() => setOpen(true)}>
-          <IconMore size={20} />
-        </IconButton>
-      )}
-      <Sheet open={open} onClose={() => setOpen(false)} title={`${pact.emoji} ${pact.name}`}>
-        <p className="mb-3 px-1 text-[15px] text-muted">
-          {isCreator
-            ? "Take it off your list, or delete it for everyone. Deleting wipes the check-ins, confessions and recap for the whole group."
-            : `Only ${creator} can delete it for everyone. You can take it off your list.`}
-        </p>
-        <List>
-          <Row title="Hide from my list" subtitle="You can bring it back any time." onClick={() => setHidden(true)} trailing={busy === "hide" ? <span className="text-[13px] text-muted">...</span> : null} />
-          {isCreator ? <Row title="Delete for everyone" tone="danger" subtitle="Can't be undone." onClick={remove} trailing={busy === "delete" ? <span className="text-[13px] text-muted">...</span> : null} /> : null}
-        </List>
-        <Button variant="soft" size="lg" className="mt-3 w-full" onClick={() => setOpen(false)}>
-          Cancel
-        </Button>
-      </Sheet>
-    </div>
+        </Link>
+        {hidden ? (
+          <Button size="sm" variant="soft" loading={busy === "unhide"} onClick={() => setHidden(false)}>
+            Unhide
+          </Button>
+        ) : (
+          <button
+            className="-mr-1 rounded-xl p-2 text-muted hover:bg-surface-2 hover:text-broke"
+            onClick={() => setOpen((o) => !o)}
+            aria-label={`Remove ${pact.name}`}
+            aria-expanded={open}
+          >
+            <IconTrash size={18} />
+          </button>
+        )}
+      </div>
+      {open ? (
+        <div className="animate-pop border-t border-line px-4 pb-4 pt-3">
+          {isCreator ? (
+            <>
+              <p className="text-sm text-muted">Delete it for everyone, or just take it off your list?</p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <Button size="sm" variant="danger" loading={busy === "delete"} onClick={remove}>
+                  Delete for everyone
+                </Button>
+                <Button size="sm" variant="soft" loading={busy === "hide"} onClick={() => setHidden(true)}>
+                  Just hide it
+                </Button>
+                <Button size="sm" variant="ghost" onClick={() => setOpen(false)}>
+                  Cancel
+                </Button>
+              </div>
+              <p className="mt-2 text-xs text-muted">Deleting wipes the check-ins, confessions and recap for the whole group. It can&apos;t be undone.</p>
+            </>
+          ) : (
+            <>
+              <p className="text-sm text-muted">Only {creator} can delete it for everyone. You can take it off your list.</p>
+              <div className="mt-3 flex gap-2">
+                <Button size="sm" variant="soft" loading={busy === "hide"} onClick={() => setHidden(true)}>
+                  Hide from my list
+                </Button>
+                <Button size="sm" variant="ghost" onClick={() => setOpen(false)}>
+                  Cancel
+                </Button>
+              </div>
+            </>
+          )}
+        </div>
+      ) : null}
+    </Card>
   );
 }
 
@@ -478,23 +491,21 @@ function Invite({ pact, inviter, onDone }: { pact: Pact; inviter?: string; onDon
     onDone();
   }
   return (
-    <Card className="mb-3 p-4">
-      <div className="flex items-center gap-3">
-        <Tile tone="grey" size={44}>
-          <span className="text-[24px]">{pact.emoji}</span>
-        </Tile>
-        <div className="min-w-0 flex-1">
-          <p className="text-[13px] font-medium text-pink">{inviter ? `${inviter.split(" ")[0]} invited you` : "You're invited"}</p>
-          <div className="truncate text-[17px] font-semibold">{pact.name}</div>
+    <Card className="mb-3 border-pink/30 p-4">
+      <p className="text-xs font-bold uppercase tracking-wider text-pink">{inviter ? `${inviter} invited you` : "Pact invite"}</p>
+      <div className="mt-2 flex items-center gap-3">
+        <PactIcon emoji={pact.emoji} size={44} />
+        <div className="flex-1">
+          <div className="font-display text-lg font-bold">{pact.name}</div>
+          <div className="text-xs text-muted">
+            {goalLabel(pact)} · {money(pact.stake_cents)}/miss{pact.escalating ? " (escalating)" : ""} · {shortDay(pact.start_date)} to {shortDay(pact.end_date)}
+          </div>
         </div>
       </div>
-      <p className="mt-2 text-[14px] text-muted">
-        {goalLabel(pact)}, {money(pact.stake_cents)} a miss{pact.escalating ? " and it doubles" : ""}. {shortDay(pact.start_date)} to {shortDay(pact.end_date)}.
-      </p>
-      {pact.rules ? <p className="mt-2 rounded-xl bg-surface-2 px-3 py-2 text-[14px]">Breaking it means: {pact.rules}</p> : null}
+      {pact.rules ? <p className="mt-2 rounded-xl bg-surface-2 px-3 py-2 text-sm">“{pact.rules}”</p> : null}
       <div className="mt-3 grid grid-cols-2 gap-2">
         <Button loading={busy === "y"} onClick={() => respond(true)}>
-          Join
+          I&apos;m in
         </Button>
         <Button variant="soft" loading={busy === "n"} onClick={() => respond(false)}>
           Not this time
@@ -525,150 +536,114 @@ function PushPrompt() {
     setState("hidden");
   };
   return (
-    <Card className="mb-4 flex items-start gap-3 p-4">
-      <Tile>
-        <IconBell size={18} />
-      </Tile>
-      <div className="min-w-0 flex-1">
-        <p className="text-[16px] font-semibold">Get a reminder before midnight</p>
-        <p className="mt-0.5 text-[14px] text-muted">
-          {state === "ios"
-            ? "On iPhone, tap Share, then Add to Home Screen. Open Pinky from there to turn on notifications."
-            : "Plus a ping when a friend nudges you or doubts a check-in."}
-        </p>
-        {state === "ask" ? (
-          <Button
-            size="sm"
-            variant="tinted"
-            className="mt-3"
-            loading={busy}
-            onClick={async () => {
-              setBusy(true);
-              try {
-                await enablePush();
-                toast("Notifications on");
-                setState("hidden");
-              } catch (e) {
-                toast(errMsg(e), "err");
-              } finally {
-                setBusy(false);
-              }
-            }}
-          >
-            Turn on
-          </Button>
-        ) : null}
+    <Card className="mb-3 p-4">
+      <div className="flex items-start gap-3">
+        <span className="mt-0.5 text-pink">
+          <IconBell size={22} />
+        </span>
+        <div className="flex-1">
+          <p className="font-semibold">Get nudges and reminders</p>
+          <p className="text-sm text-muted">
+            {state === "ios"
+              ? "On iPhone, tap Share then Add to Home Screen. Open Pinky from there to turn on notifications."
+              : "Friends can nudge you, and we'll remind you before midnight if you haven't checked in."}
+          </p>
+          <div className="mt-3 flex gap-2">
+            {state === "ask" ? (
+              <Button
+                size="sm"
+                loading={busy}
+                onClick={async () => {
+                  setBusy(true);
+                  try {
+                    await enablePush();
+                    toast("Notifications on");
+                    setState("hidden");
+                  } catch (e) {
+                    toast(errMsg(e), "err");
+                  } finally {
+                    setBusy(false);
+                  }
+                }}
+              >
+                Turn on
+              </Button>
+            ) : null}
+            <Button size="sm" variant="ghost" onClick={dismiss}>
+              Not now
+            </Button>
+          </div>
+        </div>
       </div>
-      <IconButton tone="ghost" label="Dismiss" onClick={dismiss} className="-mr-2 -mt-1.5">
-        <IconX size={16} />
-      </IconButton>
     </Card>
   );
 }
 
 /* ------------------------------------------------------------------ */
-/* Signed-out landing                                                   */
-/* ------------------------------------------------------------------ */
-const STEPS = [
-  ["Make a pact", "Pick a goal with your friends and put a price on slipping. $5 a miss is plenty."],
-  ["Check in every night", "Kept it or broke it, before midnight. Skipping the check-in counts as broke."],
-  ["Slip up, pay the pot", "Misses go in a shared pot. When the pact ends it goes wherever you agreed."],
+const FEATURES = [
+  { Icon: IconPact, t: "Make a pact", d: "No junk food, 10k steps, gym 4x a week. Set the stakes and what counts as breaking it." },
+  { Icon: IconMoon, t: "Check in by midnight", d: "Kept it or broke it. Skip the check-in and it counts as broke, so no quietly ghosting." },
+  { Icon: IconFlame, t: "Keep the group streak", d: "One shared streak. If anyone breaks, it resets for everyone. That's the peer pressure." },
+  { Icon: IconJar, t: "Slip? Pay the pot", d: "Each miss adds to a pot that goes wherever you agreed. Settle up when the pact ends." },
+  { Icon: IconEye, t: "Doubt and confess", d: "One doubt a week: they post a photo or own up. Confessions get reactions, not shame." },
 ];
 
 function Landing() {
   return (
-    <div className="mx-auto max-w-lg px-5 pb-16 pt-[env(safe-area-inset-top)]">
+    <div className="mx-auto max-w-lg px-5 pb-16">
       <header className="flex h-16 items-center justify-between">
-        <Wordmark />
-        <Button href="/login" size="sm" variant="plain">
+        <span className="flex items-center gap-2">
+          <LogoMark size={30} />
+          <span className="font-display text-2xl font-bold">pinky</span>
+        </span>
+        <Link href="/login" className="text-sm font-semibold text-muted hover:text-ink">
           Log in
-        </Button>
+        </Link>
       </header>
 
-      <section className="pt-8">
-        <h1 className="text-[40px] font-bold leading-[1.05] tracking-[-0.03em]">
+      <section className="pt-10 text-center">
+        <div className="mx-auto mb-6 w-fit">
+          <LogoMark size={88} />
+        </div>
+        <h1 className="font-display text-[44px] font-bold leading-[1.02]">
           Pinky promise.
           <br />
           <span className="text-pink">Actually keep it.</span>
         </h1>
-        <p className="mt-4 max-w-sm text-[17px] leading-relaxed text-muted">
-          A tiny app for you and your friends to stay honest about a goal. Check in every night. Slip up and you pay the pot.
+        <p className="mx-auto mt-4 max-w-sm text-lg text-muted">
+          Make a pact with your friends, check in every night, and be honest. Slip up and you pay the pot.
         </p>
-        <div className="mt-7 flex flex-col gap-2 sm:flex-row">
+        <div className="mx-auto mt-8 flex max-w-xs flex-col gap-2">
           <Button href="/signup" size="lg">
-            Get started
+            Make an account
           </Button>
           <Button href="/login" size="lg" variant="soft">
-            I have an account
+            I already have one
           </Button>
         </div>
       </section>
 
-      <section className="mt-12" aria-hidden="true">
-        <DemoCard />
-      </section>
-
-      <section className="mt-12">
-        <h2 className="px-1 text-[20px] font-bold tracking-[-0.015em]">How it works</h2>
-        <ol className="mt-3 space-y-5 px-1">
-          {STEPS.map(([t, d], i) => (
-            <li key={t} className="flex gap-4">
-              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-ink text-[14px] font-semibold text-bg">{i + 1}</span>
+      <section className="mt-16">
+        <h2 className="mb-3 px-1 text-[13px] font-bold uppercase tracking-wider text-muted">How it works</h2>
+        <Card className="divide-y divide-line px-4">
+          {FEATURES.map(({ Icon, t, d }) => (
+            <div key={t} className="flex gap-4 py-4">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-pink-soft text-pink">
+                <Icon size={20} />
+              </span>
               <div>
-                <h3 className="text-[17px] font-semibold">{t}</h3>
-                <p className="mt-0.5 text-[15px] leading-snug text-muted">{d}</p>
+                <h3 className="font-display text-lg font-bold leading-tight">{t}</h3>
+                <p className="mt-0.5 text-sm text-muted">{d}</p>
               </div>
-            </li>
+            </div>
           ))}
-        </ol>
+        </Card>
       </section>
 
-      <p className="mt-14 text-center text-[13px] text-muted">Runs on the honor system. Your friends are the referees.</p>
-    </div>
-  );
-}
-
-/** A static pact card so people can see what they're signing up for. */
-function DemoCard() {
-  const people = [
-    { display_name: "Maya", color: "#7c5cff", s: "kept" as const },
-    { display_name: "Theo", color: "#0ea5a4", s: "kept" as const },
-    { display_name: "You", color: "#f59e0b", s: "pending" as const },
-  ];
-  return (
-    <div className="pointer-events-none select-none">
-      <Card className="overflow-hidden">
-        <div className="px-4 pb-3 pt-3.5">
-          <div className="flex items-center gap-3">
-            <span className="-my-2 -ml-1.5 shrink-0">
-              <Pet stage={3} mood="waiting" size={56} still />
-            </span>
-            <div className="min-w-0 flex-1">
-              <div className="truncate text-[17px] font-semibold">🥗 No takeout till June</div>
-              <div className="text-[13px] text-muted">Day 12 of 56 · $5 a miss</div>
-            </div>
-            <div className="text-right">
-              <div className="flex items-center justify-end gap-0.5 text-[20px] font-bold leading-none tabular">
-                <IconFlame size={18} className="text-pink" />
-                11
-              </div>
-              <div className="mt-0.5 text-[11px] text-muted">day streak</div>
-            </div>
-          </div>
-          <div className="mt-3 flex items-center gap-2">
-            <div className="flex gap-1.5">
-              {people.map((p) => (
-                <Avatar key={p.display_name} profile={p} size={26} badge={p.s === "pending" ? null : p.s} />
-              ))}
-            </div>
-            <span className="text-[13px] text-muted">2 of 3 in today</span>
-          </div>
-        </div>
-        <div className="grid grid-cols-2 gap-2 border-t border-line px-4 py-3">
-          <span className="flex h-11 items-center justify-center rounded-full bg-kept text-[15px] font-semibold text-kept-ink">Kept it</span>
-          <span className="flex h-11 items-center justify-center rounded-full bg-broke-soft text-[15px] font-semibold text-broke">Broke it</span>
-        </div>
-      </Card>
+      <div className="mt-10 text-center">
+        <StatusPill status="kept" /> <StatusPill status="broke" /> <StatusPill status="off" />
+        <p className="mt-3 text-xs text-muted">Built on the honor system. Be honest.</p>
+      </div>
     </div>
   );
 }

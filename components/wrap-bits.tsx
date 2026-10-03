@@ -103,8 +103,8 @@ export function dayMark(s: MemberStats | undefined, day: string): { kind: MarkKi
 
 export function Heading({ children, aside }: { children: ReactNode; aside?: ReactNode }) {
   return (
-    <div className="mb-2.5 mt-8 flex items-baseline justify-between gap-3 px-1">
-      <h2 className="text-[20px] font-bold tracking-[-0.015em]">{children}</h2>
+    <div className="mb-3 mt-9 flex items-baseline justify-between gap-3 px-1">
+      <h2 className="font-display text-xl font-bold">{children}</h2>
       {aside ? <span className="text-xs text-muted">{aside}</span> : null}
     </div>
   );
@@ -141,7 +141,7 @@ export type ChartRow = {
 
 export function WeekChart({ heads, rows }: { heads: { key: string; label: string; faint?: boolean }[]; rows: ChartRow[] }) {
   return (
-    <div className="rounded-2xl bg-surface px-3 pb-1 pt-3 shadow-card">
+    <div className="rounded-3xl border border-line bg-surface px-3 pb-1 pt-3 shadow-card">
       <div className="grid items-center" style={{ gridTemplateColumns: `minmax(0,1fr) repeat(${heads.length}, 28px) 38px` }}>
         <span />
         {heads.map((h) => (
@@ -188,7 +188,7 @@ export type CalCell = {
 
 export function Calendar({ weeks }: { weeks: CalCell[][] }) {
   return (
-    <div className="overflow-hidden rounded-2xl bg-line shadow-card">
+    <div className="overflow-hidden rounded-3xl border border-line bg-line shadow-card">
       <div className="grid grid-cols-7 gap-px">
         {["M", "T", "W", "T", "F", "S", "S"].map((d, i) => (
           <span key={i} className="bg-surface py-1.5 text-center text-xs font-semibold text-muted">
@@ -229,7 +229,7 @@ function Initials({ who, seed }: { who: CalCell["who"]; seed: string }) {
   const r = rng(seed);
   const shown = who.slice(0, 2);
   return (
-    <span className="mt-1 flex items-baseline gap-px text-[15px] font-extrabold leading-none" style={{ transform: `rotate(${((r() - 0.5) * 14).toFixed(1)}deg)` }}>
+    <span className="mt-1 flex items-baseline gap-px font-display text-[15px] font-bold leading-none" style={{ transform: `rotate(${((r() - 0.5) * 14).toFixed(1)}deg)` }}>
       {shown.map((w) => (
         <span key={w.name} style={{ color: w.color }}>
           {w.initial}
@@ -251,7 +251,7 @@ export function WeeksGrid({
   rows: { key: string; label: string; cells: { id: string; kind: MarkKind; label: string }[] }[];
 }) {
   return (
-    <div className="rounded-2xl bg-surface px-3 pb-1 pt-3 shadow-card">
+    <div className="rounded-3xl border border-line bg-surface px-3 pb-1 pt-3 shadow-card">
       <div className="grid items-center" style={{ gridTemplateColumns: `minmax(0,1fr) repeat(${people.length}, 44px)` }}>
         <span />
         {people.map((p) => (
@@ -428,7 +428,7 @@ export function Superlatives({ items }: { items: Superlative[] }) {
                   <Avatar key={p.id} profile={p} size={20} ring="ring-2 ring-bg" />
                 ))}
               </span>
-              <span className="font-semibold">{joinAnd(a.who.map((p) => firstName(p)))}</span>
+              <span className="font-display font-bold">{joinAnd(a.who.map((p) => firstName(p)))}</span>
             </span>
           </div>
           <div className="mt-0.5 text-right text-sm text-muted">{a.why}</div>

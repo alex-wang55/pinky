@@ -4,14 +4,14 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Shell } from "@/components/shell";
 import { useAuth } from "@/components/auth";
-import { Avatar, Button, Card, Field, GroupLabel, GroupNote, List, Row, Segmented, Stepper, Toggle, inputCls, cx, rowInputCls, useToast } from "@/components/ui";
+import { Avatar, Button, Card, Field, Segmented, Stepper, Toggle, inputCls, cx, useToast } from "@/components/ui";
 import { supabase, errMsg } from "@/lib/supabase";
 import { action } from "@/lib/api";
 import { addDays, diffDays, localTz, todayIn } from "@/lib/dates";
 import type { GoalType, Profile } from "@/lib/types";
 import { IconCheck } from "@/components/icons";
+import { PACT_ICONS, PactIcon, pactIconDef } from "@/components/pact-icon";
 
-const EMOJI_OPTIONS = ["🥗", "🍔", "🏋️", "🏃", "💧", "📚", "😴", "🧘", "🚭", "📵", "🍺", "✍️", "💸", "🤙"];
 const LENGTHS = [
   { label: "2 wks", days: 14 },
   { label: "4 wks", days: 28 },
@@ -21,7 +21,7 @@ const LENGTHS = [
 
 export default function NewPact() {
   return (
-    <Shell title="Pacts" back="/" navTitle="New pact">
+    <Shell title="New pact" back="/" wide>
       <Form />
     </Shell>
   );
@@ -99,59 +99,57 @@ function Form() {
     router.replace(`/pacts/${data}`);
   }
 
-  const stakeN = Number(stake || 0);
   return (
-    <form onSubmit={submit}>
-      <Card className="p-4">
-        <div className="flex items-center gap-3">
-          <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-surface-2 text-[30px]" aria-hidden="true">
-            {emoji}
+    <form onSubmit={submit} className="space-y-4">
+      <h1 className="px-1 font-display text-[28px] font-bold">Make a pact</h1>
+
+      <div className="space-y-4 lg:grid lg:grid-cols-2 lg:items-start lg:gap-4 lg:space-y-0">
+      <div className="space-y-4">
+      <Card className="space-y-4 p-4">
+        <div>
+          <span className="mb-1.5 block text-sm font-semibold">
+            Pick an icon <span className="font-normal text-muted">· {pactIconDef(emoji).label}</span>
           </span>
-          <input
-            className="min-w-0 flex-1 bg-transparent text-[20px] font-semibold tracking-[-0.01em] outline-none placeholder:font-normal placeholder:text-faint"
-            maxLength={60}
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="Name it, like The Cut"
-            aria-label="Pact name"
-            required
-          />
+          <div className="grid grid-cols-7 gap-1.5" role="radiogroup" aria-label="Pact icon">
+            {PACT_ICONS.map((d) => (
+              <button
+                key={d.key}
+                type="button"
+                role="radio"
+                aria-checked={emoji === d.key}
+                onClick={() => setEmoji(d.key)}
+                className={cx("flex aspect-square items-center justify-center rounded-2xl transition", emoji === d.key ? "ring-2 ring-pink ring-offset-2 ring-offset-surface" : "opacity-80 hover:opacity-100")}
+                aria-label={d.label}
+                title={d.label}
+              >
+                <PactIcon emoji={d.key} size={34} />
+              </button>
+            ))}
+          </div>
         </div>
-        <div className="no-scrollbar -mx-4 mt-3 flex gap-1.5 overflow-x-auto px-4" role="radiogroup" aria-label="Emoji">
-          {EMOJI_OPTIONS.map((e) => (
-            <button
-              key={e}
-              type="button"
-              role="radio"
-              aria-checked={emoji === e}
-              onClick={() => setEmoji(e)}
-              className={cx("h-10 w-10 shrink-0 rounded-xl text-[20px] transition active:scale-90", emoji === e ? "bg-pink-soft ring-2 ring-pink" : "bg-surface-2")}
-              aria-label={`Emoji ${e}`}
-            >
-              {e}
-            </button>
-          ))}
-        </div>
+        <Field label="Name">
+          <input className={inputCls} maxLength={60} value={name} onChange={(e) => setName(e.target.value)} placeholder="The Cut" required />
+        </Field>
       </Card>
 
-      <GroupLabel>Goal</GroupLabel>
-      <Card className="space-y-3 p-4">
+      <Card className="space-y-4 p-4">
+        <span className="block text-sm font-semibold">What kind of goal?</span>
         <Segmented<GoalType>
           value={goal}
           onChange={setGoal}
           options={[
-            { value: "daily", label: "Yes or no" },
+            { value: "daily", label: "Yes / no" },
             { value: "count", label: "A number" },
-            { value: "weekly", label: "Per week" },
+            { value: "weekly", label: "X per week" },
           ]}
         />
-        <p className="text-[14px] leading-snug text-muted">
-          {goal === "daily" && "Every night you say whether you kept it or broke it. Good for diets, no-spend, no-phone."}
-          {goal === "count" && "Every night you log a number. Hit the target and you kept it."}
+        <p className="text-sm text-muted">
+          {goal === "daily" && "Every day you say if you kept it or broke it. Good for diets, no-spend, no-phone."}
+          {goal === "count" && "Every day you log a number. Hit the target and you kept it."}
           {goal === "weekly" && "Log the days you did it. Come up short by Sunday and each missing session is a miss."}
         </p>
         {goal === "count" ? (
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-2 gap-3">
             <Field label="Daily target">
               <input className={inputCls} inputMode="numeric" value={target} onChange={(e) => setTarget(e.target.value)} />
             </Field>
@@ -161,120 +159,131 @@ function Form() {
           </div>
         ) : null}
         {goal === "weekly" ? (
-          <div className="flex items-center justify-between border-t border-line pt-3">
-            <span className="text-[16px]">Times per week</span>
-            <Stepper value={perWeek} onChange={setPerWeek} min={1} max={7} label="times per week" />
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-semibold">Times per week</span>
+            <Stepper value={perWeek} onChange={setPerWeek} min={1} max={7} />
           </div>
         ) : null}
-      </Card>
-
-      <GroupLabel>What counts as breaking it?</GroupLabel>
-      <Card>
-        <textarea
-          className="block min-h-24 w-full resize-none rounded-2xl bg-transparent px-4 py-3 text-[16px] outline-none placeholder:text-faint"
-          maxLength={500}
-          value={rules}
-          onChange={(e) => setRules(e.target.value)}
-          placeholder={goal === "weekly" ? "At least 45 min at the gym. Walks don't count." : "Going over 2,000 calories, or any fast food. Protein bars are fine."}
-          aria-label="What counts as breaking it"
-        />
-      </Card>
-      <GroupNote>Agree on this now so nobody argues about the cookie later.</GroupNote>
-
-      <GroupLabel>Stakes</GroupLabel>
-      <List>
-        <label className="flex min-h-[52px] items-center gap-3 px-4">
-          <span className="flex-1 text-[16px]">Per miss</span>
-          <span className="flex items-center text-[16px]">
-            <span className="text-muted">$</span>
-            <input className={rowInputCls + " w-14 flex-none"} inputMode="decimal" value={stake} onChange={(e) => setStake(e.target.value)} aria-label="Dollars per miss" />
-          </span>
-        </label>
-        <Row
-          title="Doubles each miss"
-          subtitle={`$${stakeN}, then $${stakeN * 2}, then $${stakeN * 4} in the same week`}
-          trailing={<Toggle checked={escalating} onChange={setEscalating} label="Escalating stakes" />}
-        />
-        {goal !== "weekly" ? (
-          <Row title="Off-days a week" subtitle="Free passes so one slip doesn't wreck it" trailing={<Stepper value={offDays} onChange={setOffDays} min={0} max={3} label="off-days" />} />
-        ) : null}
-        <label className="flex min-h-[52px] items-center gap-3 px-4">
-          <span className="shrink-0 text-[16px]">Pot goes to</span>
-          <input className={rowInputCls} maxLength={120} value={pot} onChange={(e) => setPot(e.target.value)} placeholder="Ottawa Food Bank" />
-        </label>
-      </List>
-      <GroupNote>A charity, a cause you&apos;d hate to fund, or dinner for whoever slipped least.</GroupNote>
-
-      <GroupLabel>How long</GroupLabel>
-      <Card className="p-3">
-        <Segmented
-          value={String(lengthDays)}
-          onChange={(v) => setEnd(addDays(start, Number(v) - 1))}
-          options={LENGTHS.map((l) => ({ value: String(l.days), label: l.label }))}
-        />
-      </Card>
-      <List className="mt-2">
-        <label className="flex min-h-[52px] items-center gap-3 px-4">
-          <span className="flex-1 text-[16px]">Starts</span>
-          <input
-            className={rowInputCls + " flex-none"}
-            type="date"
-            min={today}
-            value={start}
-            onChange={(e) => {
-              const v = e.target.value;
-              if (!v) return;
-              setEnd(addDays(v, Math.max(0, lengthDays - 1)));
-              setStart(v);
-            }}
+        <Field label="What counts as breaking it?" hint="Agree on this now so nobody argues about the cookie later.">
+          <textarea
+            className={inputCls + " min-h-24 resize-none"}
+            maxLength={500}
+            value={rules}
+            onChange={(e) => setRules(e.target.value)}
+            placeholder={goal === "weekly" ? "At least 45 min at the gym. Walks don't count." : "Going over 2,000 calories, or any fast food. Protein bars are fine."}
           />
-        </label>
-        <label className="flex min-h-[52px] items-center gap-3 px-4">
-          <span className="flex-1 text-[16px]">Ends</span>
-          <input className={rowInputCls + " flex-none"} type="date" min={start} max={addDays(start, 365)} value={end} onChange={(e) => e.target.value && setEnd(e.target.value)} />
-        </label>
-      </List>
-      <GroupNote>
-        {lengthDays} days. Check-ins close at midnight, {tz.split("/").pop()?.replace(/_/g, " ")} time.
-      </GroupNote>
+        </Field>
+      </Card>
+      </div>
 
-      <GroupLabel>Who&apos;s in</GroupLabel>
-      {friends.length === 0 ? (
-        <List>
-          <Row title="No friends added yet" subtitle="Make it solo now and invite people from the pact later." />
-        </List>
-      ) : (
-        <List inset={64}>
-          {friends.map((f) => {
-            const on = invite.has(f.id);
-            return (
-              <Row
-                key={f.id}
-                onClick={() =>
-                  setInvite((s) => {
-                    const n = new Set(s);
-                    if (on) n.delete(f.id);
-                    else n.add(f.id);
-                    return n;
-                  })
-                }
-                leading={<Avatar profile={f} size={36} />}
-                title={f.display_name}
-                subtitle={`@${f.username}`}
-                trailing={
-                  <span className={cx("flex h-6 w-6 items-center justify-center rounded-full border-2 transition", on ? "border-pink bg-pink text-pink-ink" : "border-line")} aria-label={on ? "Invited" : "Not invited"}>
-                    {on ? <IconCheck size={14} strokeWidth={3} /> : null}
+      <div className="space-y-4">
+      <Card className="space-y-4 p-4">
+        <span className="block text-sm font-semibold">Stakes</span>
+        <div className="flex items-center gap-3">
+          <div className="relative w-32">
+            <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 font-semibold text-muted">$</span>
+            <input className={inputCls + " pl-8"} inputMode="decimal" value={stake} onChange={(e) => setStake(e.target.value)} aria-label="Dollars per miss" />
+          </div>
+          <span className="text-sm text-muted">into the pot per miss</span>
+        </div>
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <div className="text-sm font-semibold">Escalating</div>
+            <div className="text-xs text-muted">Misses in the same week double: ${stake || 0}, then ${Number(stake || 0) * 2}, then ${Number(stake || 0) * 4}</div>
+          </div>
+          <Toggle checked={escalating} onChange={setEscalating} label="Escalating stakes" />
+        </div>
+        {goal !== "weekly" ? (
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <div className="text-sm font-semibold">Off-days per week</div>
+              <div className="text-xs text-muted">Planned free passes so one slip doesn&apos;t wreck everything</div>
+            </div>
+            <Stepper value={offDays} onChange={setOffDays} min={0} max={3} />
+          </div>
+        ) : null}
+        <Field label="Where does the pot go?" hint="A charity, a cause you'd hate to fund, or dinner for whoever slipped least.">
+          <input className={inputCls} maxLength={120} value={pot} onChange={(e) => setPot(e.target.value)} placeholder="Ottawa Food Bank" />
+        </Field>
+      </Card>
+
+      <Card className="space-y-4 p-4">
+        <span className="block text-sm font-semibold">How long?</span>
+        <div className="flex flex-wrap gap-1.5">
+          {LENGTHS.map((l) => (
+            <button
+              key={l.days}
+              type="button"
+              onClick={() => setEnd(addDays(start, l.days - 1))}
+              className={cx("rounded-full px-3 py-1.5 text-sm font-semibold", lengthDays === l.days ? "bg-pink text-pink-ink" : "bg-surface-2")}
+            >
+              {l.label}
+            </button>
+          ))}
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Starts">
+            <input
+              className={inputCls}
+              type="date"
+              min={today}
+              value={start}
+              onChange={(e) => {
+                const s = e.target.value;
+                if (!s) return;
+                setEnd(addDays(s, Math.max(0, lengthDays - 1)));
+                setStart(s);
+              }}
+            />
+          </Field>
+          <Field label="Ends">
+            <input className={inputCls} type="date" min={start} max={addDays(start, 365)} value={end} onChange={(e) => e.target.value && setEnd(e.target.value)} />
+          </Field>
+        </div>
+        <p className="text-xs text-muted">
+          {lengthDays} days. Check-ins close at midnight ({tz.replace(/_/g, " ")}).
+        </p>
+      </Card>
+
+      <Card className="space-y-3 p-4">
+        <span className="block text-sm font-semibold">Who&apos;s in?</span>
+        {friends.length === 0 ? (
+          <p className="text-sm text-muted">No friends added yet. You can make it solo now and invite people later from the pact page.</p>
+        ) : (
+          <div className="divide-y divide-line">
+            {friends.map((f) => {
+              const on = invite.has(f.id);
+              return (
+                <button
+                  key={f.id}
+                  type="button"
+                  className="flex w-full items-center gap-3 py-2.5 text-left"
+                  onClick={() =>
+                    setInvite((s) => {
+                      const n = new Set(s);
+                      if (on) n.delete(f.id);
+                      else n.add(f.id);
+                      return n;
+                    })
+                  }
+                >
+                  <Avatar profile={f} size={36} />
+                  <span className="flex-1">
+                    <span className="block font-semibold">{f.display_name}</span>
+                    <span className="block text-xs text-muted">@{f.username}</span>
                   </span>
-                }
-              />
-            );
-          })}
-        </List>
-      )}
-      <GroupNote>You can always add people later with an invite link.</GroupNote>
+                  <span className={cx("flex h-6 w-6 items-center justify-center rounded-full border-2 text-xs font-bold", on ? "border-pink bg-pink text-pink-ink" : "border-line")}>{on ? <IconCheck size={14} strokeWidth={2.6} /> : null}</span>
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </Card>
+      </div>
+      </div>
 
-      <Button type="submit" size="lg" className="mt-6 w-full" loading={busy}>
-        {invite.size ? `Make it and invite ${invite.size}` : "Make the pact"}
+      <Button type="submit" size="lg" className="w-full lg:ml-auto lg:flex lg:w-80" loading={busy}>
+        Make the pact
       </Button>
     </form>
   );

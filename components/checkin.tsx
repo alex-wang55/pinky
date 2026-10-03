@@ -8,8 +8,8 @@ import type { PactStats } from "@/lib/stats";
 import { effectiveStatus } from "@/lib/stats";
 import { addDays, prettyDay } from "@/lib/dates";
 import { money } from "@/lib/money";
-import { Button, inputCls, useToast, cx } from "./ui";
-import { IconCamera, IconCheck, IconPencil, IconRebound, IconX } from "./icons";
+import { Button, StatusPill, inputCls, useToast, cx } from "./ui";
+import { IconCamera, IconPencil, IconRebound } from "./icons";
 
 export async function uploadProof(pact: Pact, checkin: Checkin, userId: string, file: File) {
   const blob = await compressImage(file);
@@ -25,7 +25,7 @@ export function ProofButton({
   checkin,
   userId,
   onDone,
-  label = "Add a photo",
+  label = "Add proof photo",
   variant = "soft",
 }: {
   pact: Pact;
@@ -62,7 +62,7 @@ export function ProofButton({
         }}
       />
       <Button size="sm" variant={variant} loading={busy} onClick={() => ref.current?.click()}>
-        <IconCamera size={15} />
+        <IconCamera size={16} />
         {label}
       </Button>
     </>
@@ -94,10 +94,10 @@ export function CheckIn({
 
   if (!me) return null;
   if (stats.ended) {
-    return <p className="text-[15px] text-muted">This pact is over. Check the recap.</p>;
+    return <p className="text-sm text-muted">This pact is over. Check the recap.</p>;
   }
   if (!me.active) {
-    return <p className="text-[15px] text-muted">Starts {prettyDay(me.startsOn, stats.today)}. Get ready.</p>;
+    return <p className="text-sm text-muted">Starts {prettyDay(me.startsOn, stats.today)}. Get ready.</p>;
   }
 
   const c = me.todayCheckin;
@@ -148,26 +148,30 @@ export function CheckIn({
 
   /* ---------- weekly ---------- */
   if (pact.goal_type === "weekly") {
-    const pips = Math.max(me.weekTarget, me.weekCount);
+    const pct = me.weekTarget ? Math.min(1, me.weekCount / me.weekTarget) : 0;
     return (
       <div className="space-y-3">
-        <div className="flex items-center justify-between gap-3">
-          <div>
-            <div className="text-[15px] font-semibold">
-              {me.weekCount >= me.weekTarget ? "Done for the week" : `${me.weekTarget - me.weekCount} to go this week`}
-            </div>
-            <div className="text-[13px] text-muted tabular">
-              {me.weekCount} of {me.weekTarget} sessions
-            </div>
+        <div>
+          <div className="mb-1.5 flex items-baseline justify-between text-sm">
+            <span className="font-semibold">This week</span>
+            <span className="tabular font-bold">
+              {me.weekCount} / {me.weekTarget}
+            </span>
           </div>
-          <div className="flex gap-1" aria-hidden="true">
-            {Array.from({ length: pips }, (_, i) => (
-              <span key={i} className={cx("h-2.5 w-6 rounded-full", i < me.weekCount ? "bg-kept" : "bg-surface-2")} />
-            ))}
+          <div className="h-2.5 overflow-hidden rounded-full bg-surface-2">
+            <div className="h-full rounded-full bg-kept transition-all" style={{ width: `${pct * 100}%` }} />
           </div>
         </div>
         {c && eff === "kept" ? (
-          <Done tone="kept" text="Logged today" action={!myOpenDoubt ? { label: "Undo", onClick: undo, busy: busy === "undo" } : undefined} />
+          <div className="flex flex-wrap items-center gap-2">
+            <StatusPill status="kept" />
+            <span className="text-sm text-muted">Logged today</span>
+            {!myOpenDoubt ? (
+              <button className="ml-auto text-sm font-semibold text-muted underline-offset-2 hover:underline" onClick={undo} disabled={busy === "undo"}>
+                Undo
+              </button>
+            ) : null}
+          </div>
         ) : (
           <Button variant="kept" size="lg" className="w-full" loading={busy === "kept"} onClick={() => submit("kept")}>
             I did it today
@@ -181,37 +185,36 @@ export function CheckIn({
   /* ---------- daily / count ---------- */
   const todayMiss = me.misses.find((m) => m.day === stats.today);
   const offer = me.comebackOffer;
-  const countBit = pact.goal_type === "count" && c?.value !== null && c?.value !== undefined ? ` ${Number(c.value).toLocaleString()} of ${Number(pact.target).toLocaleString()} ${pact.unit ?? ""}.` : "";
   return (
     <div className="space-y-3">
       {offer && (!c || editing) ? (
-        <p className="flex items-start gap-2 text-[14px] text-kept">
-          <IconRebound size={17} className="mt-0.5 shrink-0" />
+        <div className="flex items-start gap-2.5 rounded-2xl bg-kept-soft px-3 py-2.5 text-sm text-kept">
+          <IconRebound size={18} className="mt-0.5 shrink-0" />
           <span>
-            <b className="font-semibold">Comeback day.</b> Keep it today and yesterday&apos;s {money(offer.cents)} miss drops to {money(Math.round(offer.cents / 2))}.
+            <b>Comeback day.</b> Keep it today and yesterday&apos;s {money(offer.cents)} miss drops to {money(Math.round(offer.cents / 2))}.
           </span>
-        </p>
+        </div>
       ) : null}
-
       {c && !editing ? (
-        <Done
-          tone={eff ?? "kept"}
-          text={
-            eff === "kept"
-              ? `You kept it today.${countBit}`
-              : eff === "off"
-                ? "Off-day today. Back at it tomorrow."
-                : `You broke it.${countBit} ${money(todayMiss?.cents ?? pact.stake_cents)} to the pot.`
-          }
-          sub={
-            eff === "kept" && offer === null && me.misses.some((m) => m.comeback && m.day === addDays(stats.today, -1))
-              ? "Comeback. Yesterday's miss is half off."
-              : eff === "broke" && todayMiss && todayMiss.kind !== "doubt"
-                ? "Keep it tomorrow and this one's half off."
-                : undefined
-          }
-          action={!myOpenDoubt ? { label: "Change", onClick: () => setEditing(true) } : undefined}
-        />
+        <div className="flex flex-wrap items-center gap-2">
+          <StatusPill status={eff ?? "pending"} />
+          {pact.goal_type === "count" && c.value !== null ? (
+            <span className="tabular text-sm font-semibold">
+              {Number(c.value).toLocaleString()} / {Number(pact.target).toLocaleString()} {pact.unit}
+            </span>
+          ) : null}
+          {eff === "broke" ? <span className="text-sm text-muted">+{money(todayMiss?.cents ?? pact.stake_cents)} to the pot</span> : null}
+          {eff === "kept" && offer === null && me.comebacks > 0 && me.misses.some((m) => m.comeback && m.day === addDays(stats.today, -1)) ? (
+            <span className="flex items-center gap-1 text-sm font-semibold text-kept">
+              <IconRebound size={15} /> Comeback. Yesterday&apos;s miss is half off.
+            </span>
+          ) : null}
+          {!myOpenDoubt ? (
+            <button className="ml-auto text-sm font-semibold text-muted underline-offset-2 hover:underline" onClick={() => setEditing(true)}>
+              Change
+            </button>
+          ) : null}
+        </div>
       ) : null}
 
       {showButtons ? (
@@ -227,53 +230,59 @@ export function CheckIn({
           >
             <div className="relative flex-1">
               <input
-                className={inputCls + " h-11 rounded-full py-0 pr-16"}
+                className={inputCls + " pr-16"}
                 inputMode="decimal"
-                placeholder={`Goal is ${Number(pact.target).toLocaleString()}`}
+                placeholder={`Goal: ${Number(pact.target).toLocaleString()}`}
                 value={value}
                 onChange={(e) => setValue(e.target.value)}
                 aria-label={`How many ${pact.unit ?? ""} today`}
               />
-              <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-[15px] text-muted">{pact.unit}</span>
+              <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-sm text-muted">{pact.unit}</span>
             </div>
-            <Button type="submit" loading={busy === "kept" || busy === "broke"}>
-              Log it
+            <Button type="submit" size="lg" loading={busy === "kept" || busy === "broke"}>
+              Log
             </Button>
           </form>
         ) : (
           <div className="grid grid-cols-2 gap-2">
-            <Button variant="kept" loading={busy === "kept"} onClick={() => submit("kept")}>
+            <Button variant="kept" size="lg" loading={busy === "kept"} onClick={() => submit("kept")}>
               Kept it
             </Button>
-            <Button variant="broke" loading={busy === "broke"} onClick={() => submit("broke")}>
+            <Button variant="broke" size="lg" loading={busy === "broke"} onClick={() => submit("broke")}>
               Broke it
             </Button>
           </div>
         )
       ) : null}
 
-      {showButtons && (pact.off_days_per_week > 0 || editing) ? (
-        <div className="flex items-center justify-center gap-4 text-[14px]">
-          {pact.off_days_per_week > 0 ? (
-            <button
-              className={cx("font-medium transition active:opacity-60", me.offLeftThisWeek > 0 ? "text-off" : "text-faint")}
-              disabled={me.offLeftThisWeek === 0 || busy === "off"}
-              onClick={() => submit("off")}
-            >
-              {me.offLeftThisWeek > 0 ? `Use an off-day (${me.offLeftThisWeek} left)` : "No off-days left this week"}
-            </button>
-          ) : null}
-          {editing ? (
-            <button className="font-medium text-muted active:opacity-60" onClick={() => setEditing(false)}>
-              Cancel
-            </button>
-          ) : null}
-        </div>
+      {c && !editing && eff === "broke" && todayMiss && todayMiss.kind !== "doubt" ? (
+        <p className="flex items-center gap-1.5 text-xs text-muted">
+          <IconRebound size={14} className="shrink-0" />
+          Keep it tomorrow and this one&apos;s half off.
+        </p>
+      ) : null}
+
+      {showButtons && pact.off_days_per_week > 0 ? (
+        <button
+          className={cx("w-full rounded-2xl border border-dashed py-2.5 text-sm font-semibold transition", me.offLeftThisWeek > 0 ? "border-off/50 text-off hover:bg-off-soft" : "border-line text-muted opacity-60")}
+          disabled={me.offLeftThisWeek === 0 || busy === "off"}
+          onClick={() => submit("off")}
+        >
+          {me.offLeftThisWeek > 0
+            ? `Use an off-day (${me.offLeftThisWeek} left this week)`
+            : "No off-days left this week"}
+        </button>
+      ) : null}
+
+      {editing ? (
+        <button className="text-sm font-semibold text-muted" onClick={() => setEditing(false)}>
+          Cancel
+        </button>
       ) : null}
 
       {noteOpen && c ? (
-        <div className="animate-pop space-y-2">
-          <p className="text-[15px] font-semibold">What happened?</p>
+        <div className="animate-pop space-y-2 rounded-2xl bg-surface-2 p-3">
+          <p className="text-sm font-semibold">Confess. What happened?</p>
           <textarea
             className={inputCls + " min-h-20 resize-none"}
             maxLength={280}
@@ -282,61 +291,18 @@ export function CheckIn({
             onChange={(e) => setNote(e.target.value)}
             autoFocus
           />
-          <div className="flex items-center justify-between gap-2">
-            <span className="text-[13px] text-muted">Your crew sees this in the feed.</span>
-            <div className="flex gap-1">
-              <Button size="sm" variant="ghost" onClick={() => setNoteOpen(false)}>
-                Skip
-              </Button>
-              <Button size="sm" loading={busy === "note"} onClick={saveNote}>
-                Post
-              </Button>
-            </div>
+          <div className="flex justify-end gap-2">
+            <Button size="sm" variant="ghost" onClick={() => setNoteOpen(false)}>
+              Skip
+            </Button>
+            <Button size="sm" loading={busy === "note"} onClick={saveNote}>
+              Post confession
+            </Button>
           </div>
         </div>
       ) : null}
 
       {full && c && !editing && !noteOpen ? <NoteAndProof pact={pact} c={c} userId={userId} onChange={onChange} /> : null}
-    </div>
-  );
-}
-
-/** "You kept it today" line with a status circle and an optional action on the right. */
-function Done({
-  tone,
-  text,
-  sub,
-  action,
-}: {
-  tone: "kept" | "broke" | "off";
-  text: string;
-  sub?: string;
-  action?: { label: string; onClick: () => void; busy?: boolean };
-}) {
-  const circle = {
-    kept: "bg-kept text-kept-ink",
-    broke: "bg-broke text-white",
-    off: "bg-off text-white",
-  }[tone];
-  return (
-    <div className="flex items-center gap-3">
-      <span className={cx("flex h-8 w-8 shrink-0 items-center justify-center rounded-full", circle)}>
-        {tone === "kept" ? <IconCheck size={18} strokeWidth={2.8} /> : tone === "broke" ? <IconX size={16} strokeWidth={2.8} /> : <span className="h-[3px] w-3 rounded bg-current" />}
-      </span>
-      <div className="min-w-0 flex-1">
-        <p className="text-[15px] font-medium leading-snug">{text}</p>
-        {sub ? (
-          <p className="mt-0.5 flex items-center gap-1 text-[13px] text-muted">
-            <IconRebound size={13} className="shrink-0" />
-            {sub}
-          </p>
-        ) : null}
-      </div>
-      {action ? (
-        <Button size="sm" variant="plain" onClick={action.onClick} disabled={action.busy}>
-          {action.label}
-        </Button>
-      ) : null}
     </div>
   );
 }
@@ -348,11 +314,10 @@ function NoteAndProof({ pact, c, userId, onChange }: { pact: Pact; c: Checkin; u
   const toast = useToast();
   return (
     <div className="space-y-2">
-      {c.note && !open ? <p className="rounded-xl bg-surface-2 px-3 py-2 text-[15px]">{c.note}</p> : null}
       {open ? (
         <div className="space-y-2">
           <textarea className={inputCls + " min-h-20 resize-none"} maxLength={280} value={note} onChange={(e) => setNote(e.target.value)} placeholder={c.status === "broke" ? "What happened?" : "Anything to add?"} autoFocus />
-          <div className="flex justify-end gap-1">
+          <div className="flex justify-end gap-2">
             <Button size="sm" variant="ghost" onClick={() => setOpen(false)}>
               Cancel
             </Button>
@@ -375,8 +340,8 @@ function NoteAndProof({ pact, c, userId, onChange }: { pact: Pact; c: Checkin; u
       ) : (
         <div className="flex flex-wrap gap-2">
           <Button size="sm" variant="soft" onClick={() => setOpen(true)}>
-            <IconPencil size={15} />
-            {c.note ? "Edit note" : c.status === "broke" ? "Say what happened" : "Add a note"}
+            <IconPencil size={16} />
+            {c.note ? "Edit note" : c.status === "broke" ? "Confess" : "Add a note"}
           </Button>
           {!c.proof_path ? <ProofButton pact={pact} checkin={c} userId={userId} onDone={onChange} /> : null}
         </div>

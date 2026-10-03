@@ -14,7 +14,7 @@ export function Wordmark() {
   return (
     <span className="flex items-center gap-2">
       <LogoMark size={28} />
-      <span className="font-brand text-[22px] font-extrabold">pinky</span>
+      <span className="font-display text-[22px] font-bold">pinky</span>
     </span>
   );
 }

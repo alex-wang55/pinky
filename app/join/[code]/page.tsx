@@ -3,12 +3,13 @@
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/components/auth";
-import { Button, Card, GroupLabel, List, PageLoader, Row, useToast } from "@/components/ui";
+import { Button, Card, PageLoader, useToast } from "@/components/ui";
 import { LogoMark } from "@/components/logo";
 import { Pet } from "@/components/pet";
 import { supabase, errMsg } from "@/lib/supabase";
 import { shortDay } from "@/lib/dates";
 import { money } from "@/lib/money";
+import { PactIcon } from "@/components/pact-icon";
 
 type Preview = {
   id: string;
@@ -66,44 +67,50 @@ export default function JoinPage() {
         : "Every day";
 
   return (
-    <div className="mx-auto flex min-h-dvh max-w-sm flex-col justify-center px-5 py-10">
+    <div className="mx-auto flex min-h-dvh max-w-sm flex-col items-center justify-center px-5 py-10">
+      <LogoMark size={48} />
       {p === null ? (
-        <div className="flex flex-col items-center text-center">
-          <LogoMark size={56} />
-          <h1 className="mt-5 text-[24px] font-bold tracking-[-0.02em]">This link doesn&apos;t work anymore</h1>
-          <p className="mt-1 text-[15px] text-muted">Ask whoever sent it for a fresh one.</p>
-          <Button href="/" className="mt-6" variant="soft">
+        <Card className="mt-6 w-full p-6 text-center">
+          <h1 className="font-display text-2xl font-bold">This link doesn&apos;t work anymore</h1>
+          <p className="mt-2 text-muted">Ask whoever sent it for a fresh one.</p>
+          <Button href="/" className="mt-5" variant="soft">
             Go to Pinky
           </Button>
-        </div>
+        </Card>
       ) : (
-        <>
-          <div className="flex flex-col items-center text-center">
-            <Pet stage={0} mood={p.ended ? "sleeping" : "waiting"} size={104} />
-            <p className="mt-1 text-[15px] font-medium text-pink">{p.creator ? `${p.creator.split(" ")[0]} invited you` : "You're invited"}</p>
-            <h1 className="mt-1 text-[28px] font-bold leading-tight tracking-[-0.02em]">
-              {p.emoji} {p.name}
+        <Card className="mt-6 w-full overflow-hidden">
+          <div className="flex flex-col items-center bg-pink-soft px-6 pb-5 pt-6 text-center">
+            <Pet stage={0} mood={p.ended ? "sleeping" : "waiting"} size={88} />
+            <p className="mt-1 text-xs font-bold uppercase tracking-wider text-pink">{p.creator ? `${p.creator} invited you` : "You're invited"}</p>
+            <h1 className="mt-1 flex items-center justify-center gap-2 font-display text-2xl font-bold leading-tight">
+              <PactIcon emoji={p.emoji} size={32} />
+              {p.name}
             </h1>
-            <p className="mt-1 text-[15px] text-muted">
+            <p className="mt-1 text-sm text-muted">
               {p.member_count} {p.member_count === 1 ? "person" : "people"} in · {shortDay(p.start_date)} to {shortDay(p.end_date)}
             </p>
           </div>
+          <div className="space-y-3 p-6">
+            <div className="flex flex-wrap justify-center gap-1.5 text-xs font-semibold">
+              <span className="rounded-full bg-surface-2 px-2.5 py-1">{goal}</span>
+              <span className="rounded-full bg-surface-2 px-2.5 py-1">
+                {money(p.stake_cents)}/miss{p.escalating ? ", escalating" : ""}
+              </span>
+              {p.off_days_per_week > 0 ? (
+                <span className="rounded-full bg-surface-2 px-2.5 py-1">
+                  {p.off_days_per_week} off-day{p.off_days_per_week === 1 ? "" : "s"}/wk
+                </span>
+              ) : null}
+            </div>
+            {p.rules ? (
+              <p className="rounded-xl bg-surface-2 px-3 py-2 text-sm">
+                <span className="font-semibold">Breaking it means: </span>
+                {p.rules}
+              </p>
+            ) : null}
 
-          <List className="mt-6">
-            <Row title="Goal" trailing={<span className="text-[16px] text-muted">{goal}</span>} />
-            <Row title="Per miss" trailing={<span className="text-[16px] text-muted">{money(p.stake_cents)}{p.escalating ? ", doubling" : ""}</span>} />
-            {p.off_days_per_week > 0 ? <Row title="Off-days" trailing={<span className="text-[16px] text-muted">{p.off_days_per_week} a week</span>} /> : null}
-          </List>
-          {p.rules ? (
-            <>
-              <GroupLabel>Breaking it means</GroupLabel>
-              <Card className="p-4 text-[15px] leading-snug">{p.rules}</Card>
-            </>
-          ) : null}
-
-          <div className="mt-6">
             {p.ended ? (
-              <p className="text-center text-[15px] text-muted">This pact is already over.</p>
+              <p className="text-center text-sm font-semibold text-muted">This pact is already over.</p>
             ) : p.my_status === "active" ? (
               <Button href={`/pacts/${p.id}`} size="lg" className="w-full">
                 You&apos;re already in. Open it
@@ -122,9 +129,11 @@ export default function JoinPage() {
                 Join the pact
               </Button>
             )}
-            {!p.ended && p.my_status !== "active" ? <p className="mt-3 text-center text-[13px] text-muted">You start counting from the day you join.</p> : null}
+            {!p.ended && p.my_status !== "active" ? (
+              <p className="text-center text-xs text-muted">You start counting from the day you join.</p>
+            ) : null}
           </div>
-        </>
+        </Card>
       )}
     </div>
   );

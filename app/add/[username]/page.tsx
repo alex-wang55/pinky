@@ -47,8 +47,8 @@ export default function AddFriend() {
       <Card className="mt-6 w-full p-6">
         {!session ? (
           <>
-            <h1 className="text-[24px] font-bold leading-tight tracking-[-0.02em]">@{uname} wants you on Pinky</h1>
-            <p className="mt-2 text-[15px] text-muted">Pinky promise each other you&apos;ll stick to it. Make an account to connect.</p>
+            <h1 className="font-display text-2xl font-bold">@{uname} wants you on Pinky</h1>
+            <p className="mt-2 text-muted">Pinky promise each other you&apos;ll stick to it. Make an account to connect.</p>
             <div className="mt-5 flex flex-col gap-2">
               <Button href={`/signup?next=${next}`} size="lg">
                 Make an account
@@ -67,7 +67,7 @@ export default function AddFriend() {
           </>
         ) : msg ? (
           <>
-            <p className="text-[17px] font-semibold">{msg}</p>
+            <p className="font-semibold">{msg}</p>
             <div className="mt-4 flex justify-center gap-2">
               <Button href="/pacts/new">Make a pact</Button>
               <Button href="/" variant="soft">

@@ -21,8 +21,8 @@ export async function POST(req: Request) {
   const myName = me?.display_name ?? "A friend";
 
   const pactInfo = async (id: string) => {
-    const { data } = await sb.from("pacts").select("name, emoji").eq("id", id).single();
-    return data ? `${data.emoji} ${data.name}` : "your pact";
+    const { data } = await sb.from("pacts").select("name").eq("id", id).single();
+    return data ? data.name : "your pact";
   };
 
   try {

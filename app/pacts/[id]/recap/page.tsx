@@ -27,11 +27,12 @@ import { computePact, doubtExpired, goalLabel } from "@/lib/stats";
 import { collectQuotes, firstName, groupStates, personLine, recapStory, times } from "@/lib/wrap-story";
 import { addDays, eachDay, minDay, shortDay, weekStart } from "@/lib/dates";
 import { money } from "@/lib/money";
+import { PactIcon } from "@/components/pact-icon";
 
 export default function RecapPage() {
   const { id } = useParams<{ id: string }>();
   return (
-    <Shell title="Pact" back={`/pacts/${id}`}>
+    <Shell title="Pact" back={`/pacts/${id}`} wide>
       <Recap id={id} />
     </Shell>
   );
@@ -160,11 +161,14 @@ function Recap({ id }: { id: string }) {
 
   return (
     <div>
+    <div className="lg:grid lg:grid-cols-2 lg:items-start lg:gap-10">
+      <div>
       <div className="flex items-end justify-between gap-2 px-1">
         <div className="min-w-0 pb-1">
           <p className="text-sm text-muted">{stats.ended ? "Final recap" : "Recap so far"}</p>
-          <h1 className="mt-0.5 text-[30px] font-bold leading-[1.1] tracking-[-0.02em]">
-            {pact.emoji} {pact.name}
+          <h1 className="mt-1 flex items-center gap-2.5 font-display text-[30px] font-bold leading-[1.1]">
+            <PactIcon emoji={pact.emoji} size={38} />
+            <span className="min-w-0">{pact.name}</span>
           </h1>
         </div>
         <Pet stage={pet.stage} mood={stats.ended ? "sleeping" : pet.mood} size={76} />
@@ -195,6 +199,9 @@ function Recap({ id }: { id: string }) {
         ))}
       </div>
 
+      </div>
+
+      <div className="lg:[&>*:first-child]:mt-0 lg:[&>*:first-child>*:first-child]:mt-0">
       {quotes.length ? (
         <>
           <Heading>In their own words</Heading>
@@ -219,13 +226,15 @@ function Recap({ id }: { id: string }) {
           <Superlatives items={awards} />
         </>
       ) : null}
+      </div>
+    </div>
 
       <p className="mt-12 text-center text-sm text-muted">
         {stats.ended ? "That's the pact. Screenshot this for the group chat." : `Still going, ${stats.daysLeft} ${stats.daysLeft === 1 ? "day" : "days"} left.`}
       </p>
       <div className="mt-3 flex items-center justify-center gap-2 text-sm text-muted">
         <LogoMark size={18} />
-        <span className="font-brand font-extrabold">pinky</span>
+        <span className="font-display font-bold">pinky</span>
       </div>
     </div>
   );

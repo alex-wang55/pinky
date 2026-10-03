@@ -23,6 +23,7 @@ import type { Bundle } from "@/lib/data";
 import { computePact, effectiveStatus, weekSummary, wrapWeek, type WeekMember } from "@/lib/stats";
 import { collectQuotes, firstName, times, weekStory, weekday } from "@/lib/wrap-story";
 import { addDays, eachDay, shortDay, weekStart } from "@/lib/dates";
+import { PactGlyph, pactTint } from "@/components/pact-icon";
 
 export function WeekView({ b, asked }: { b: Bundle; asked: string | null }) {
   const data = useMemo(() => {
@@ -120,7 +121,8 @@ export function WeekView({ b, asked }: { b: Bundle; asked: string | null }) {
   const thisWeek = ws === weekStart(stats.today) && !stats.ended;
 
   return (
-    <div>
+    <div className="lg:grid lg:grid-cols-2 lg:items-start lg:gap-10">
+      <div>
       <div className="mb-5 flex items-center justify-between px-1 text-sm">
         {ws > first ? (
           <Link href={`/pacts/${pact.id}/week?w=${addDays(ws, -7)}`} className="flex items-center gap-1 font-semibold text-muted hover:text-ink">
@@ -144,10 +146,11 @@ export function WeekView({ b, asked }: { b: Bundle; asked: string | null }) {
       <div className="flex items-end gap-2 px-1">
         <Pet stage={pet.stage} mood={weekMood} size={76} />
         <div className="min-w-0 pb-2">
-          <p className="truncate text-sm text-muted">
-            {pact.emoji} {pact.name}
+          <p className="flex items-center gap-1.5 truncate text-sm text-muted">
+            <PactGlyph emoji={pact.emoji} size={15} className={pactTint(pact.emoji)} />
+            {pact.name}
           </p>
-          <h1 className="text-[28px] font-bold leading-tight tracking-[-0.02em]">{thisWeek ? "This week so far" : `Week of ${shortDay(ws)}`}</h1>
+          <h1 className="font-display text-[28px] font-bold leading-tight">{thisWeek ? "This week so far" : `Week of ${shortDay(ws)}`}</h1>
         </div>
       </div>
       <p className="mt-3 px-1 text-[17px] leading-relaxed">{story.join(" ")}</p>
@@ -168,6 +171,9 @@ export function WeekView({ b, asked }: { b: Bundle; asked: string | null }) {
         }
       />
 
+      </div>
+
+      <div className="lg:[&>*:first-child]:mt-0 lg:[&>*:first-child>*:first-child]:mt-0">
       {quotes.length ? (
         <>
           <Heading>In their own words</Heading>
@@ -194,6 +200,7 @@ export function WeekView({ b, asked }: { b: Bundle; asked: string | null }) {
       ) : null}
 
       {thisWeek ? <p className="mt-10 text-center text-sm text-muted">This week wraps up Sunday.</p> : null}
+      </div>
     </div>
   );
 }
