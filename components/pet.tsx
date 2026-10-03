@@ -48,7 +48,11 @@ export function petState(pact: Pact, stats: PactStats) {
   let line: string;
   if (!stats.started) line = `${name} hatches when the pact starts.`;
   else if (stats.ended) line = `${name} is resting. Good pact.`;
-  else if (mood === "happy") line = `${name} is thriving. Everyone kept it today.`;
+  else if (stats.unit === "week") {
+    if (mood === "happy") line = `${name} is thriving. Everyone's hit their number this week.`;
+    else if (mood === "sad") line = `${name} is still bummed about last week. Everyone hitting their number this week fixes that.`;
+    else line = `${name} is waiting on everyone to hit their number this week.`;
+  } else if (mood === "happy") line = `${name} is thriving. Everyone kept it today.`;
   else if (stats.groupBrokeToday) line = `${name} is a little sad today. A clean day tomorrow cheers it up.`;
   else if (mood === "sad") line = `${name} is still bummed about yesterday. Keep it today to fix that.`;
   else line = `${name} is waiting on ${pending} of you today.`;

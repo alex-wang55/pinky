@@ -5,7 +5,10 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { supabase, errMsg } from "@/lib/supabase";
 import { useAuth } from "./auth";
-import { Button, Field, inputCls } from "./ui";
+import { Button, Field, inputCls as baseInput } from "./ui";
+
+// These forms sit on the page background, so fields get a white fill instead of grey.
+const inputCls = baseInput + " !bg-surface shadow-card";
 import { LogoMark } from "./logo";
 
 export const COLORS = ["#f2316f", "#7c5cff", "#0ea5a4", "#f59e0b", "#3b82f6", "#ef6c3a", "#16a34a", "#c026d3"];
@@ -19,11 +22,11 @@ function useNext() {
 function AuthFrame({ title, sub, children }: { title: string; sub: string; children: React.ReactNode }) {
   return (
     <div className="mx-auto flex min-h-dvh max-w-sm flex-col justify-center px-5 py-10">
-      <Link href="/" className="mb-8 self-start">
+      <Link href="/" className="mb-8 self-start" aria-label="Pinky home">
         <LogoMark size={44} />
       </Link>
-      <h1 className="font-display text-3xl font-extrabold">{title}</h1>
-      <p className="mt-1 text-muted">{sub}</p>
+      <h1 className="title-lg">{title}</h1>
+      <p className="mt-1 text-[17px] text-muted">{sub}</p>
       <div className="mt-8">{children}</div>
     </div>
   );
@@ -61,12 +64,12 @@ export function LoginForm() {
         <Field label="Password">
           <input className={inputCls} type="password" autoComplete="current-password" required value={password} onChange={(e) => setPassword(e.target.value)} />
         </Field>
-        {err ? <p className="text-sm font-semibold text-broke">{err}</p> : null}
+        {err ? <p className="px-1 text-[14px] font-medium text-broke">{err}</p> : null}
         <Button type="submit" size="lg" className="w-full" loading={busy}>
           Log in
         </Button>
       </form>
-      <p className="mt-6 text-center text-sm text-muted">
+      <p className="mt-6 text-center text-[15px] text-muted">
         New here?{" "}
         <Link className="font-semibold text-pink" href={`/signup${next !== "/" ? `?next=${encodeURIComponent(next)}` : ""}`}>
           Make an account
@@ -167,12 +170,12 @@ export function SignupForm() {
         <Field label="Password" hint="At least 6 characters">
           <input className={inputCls} type="password" autoComplete="new-password" required value={password} onChange={(e) => setPassword(e.target.value)} />
         </Field>
-        {err ? <p className="text-sm font-semibold text-broke">{err}</p> : null}
+        {err ? <p className="px-1 text-[14px] font-medium text-broke">{err}</p> : null}
         <Button type="submit" size="lg" className="w-full" loading={busy}>
           Create account
         </Button>
       </form>
-      <p className="mt-6 text-center text-sm text-muted">
+      <p className="mt-6 text-center text-[15px] text-muted">
         Already have one?{" "}
         <Link className="font-semibold text-pink" href={`/login${next !== "/" ? `?next=${encodeURIComponent(next)}` : ""}`}>
           Log in

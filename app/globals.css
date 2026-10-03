@@ -1,57 +1,62 @@
 @import "tailwindcss";
 
 :root {
-  --bg: #fff7f3;
+  /* Grouped-list look: warm grey page, white cells, hairline separators. */
+  --bg: #f4f2f0;
   --surface: #ffffff;
-  --surface-2: #fdf0ea;
-  --ink: #1d1420;
-  --muted: #74667a;
-  --line: #f0e1da;
+  --surface-2: #efecea;
+  --ink: #18131a;
+  --muted: #6e6770;
+  --faint: #a59ea7;
+  --line: #e7e3e0;
   --pink: #f2316f;
   --pink-ink: #ffffff;
-  --pink-soft: #ffe3ec;
-  --kept: #148a5c;
-  --kept-soft: #dcf5e9;
+  --pink-soft: #fde8ef;
+  --kept: #128759;
+  --kept-soft: #e1f3e9;
   --kept-ink: #ffffff;
   --pet-line: #3a1626;
-  --broke: #d93a3f;
-  --broke-soft: #fde4e4;
-  --off: #b7791f;
-  --off-soft: #fbf0d9;
+  --broke: #dc3439;
+  --broke-soft: #fce9e9;
+  --off: #b06d10;
+  --off-soft: #f8eedc;
   --paper: #fffdf8;
   --paper-ink: #2b2226;
   --paper-muted: #8b7e82;
   --note: #fff0b8;
   --tape: rgb(255 255 255 / 0.6);
-  --shadow: 0 1px 2px rgb(60 20 40 / 0.05), 0 8px 24px -12px rgb(60 20 40 / 0.12);
+  --shadow: 0 1px 2px rgb(30 20 25 / 0.05);
+  --shadow-pop: 0 10px 30px -8px rgb(30 20 25 / 0.25);
   color-scheme: light;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #141015;
-    --surface: #1e1820;
-    --surface-2: #272029;
-    --ink: #f7eef2;
-    --muted: #a8999f;
-    --line: #322833;
+    --bg: #0d0b0e;
+    --surface: #1b181c;
+    --surface-2: #2a262b;
+    --ink: #f5f1f3;
+    --muted: #a39ba4;
+    --faint: #6f6871;
+    --line: #2e2a2f;
     --pink: #ff5a90;
     --pink-ink: #1a0b12;
-    --pink-soft: #3d1a2a;
-    --kept: #45c98f;
-    --kept-soft: #143326;
+    --pink-soft: #3a1828;
+    --kept: #42c48b;
+    --kept-soft: #12301f;
     --kept-ink: #07261a;
     --pet-line: #f7eef2;
-    --broke: #ff6b6f;
-    --broke-soft: #3a1a1c;
+    --broke: #ff6a6e;
+    --broke-soft: #3a191b;
     --off: #e8b04f;
-    --off-soft: #362a14;
+    --off-soft: #33280f;
     --paper: #e4ddd3;
     --paper-ink: #261d21;
     --paper-muted: #6e6367;
     --note: #3a3219;
     --tape: rgb(255 255 255 / 0.14);
-    --shadow: 0 1px 2px rgb(0 0 0 / 0.3), 0 8px 24px -12px rgb(0 0 0 / 0.5);
+    --shadow: 0 0 0 1px rgb(255 255 255 / 0.03);
+    --shadow-pop: 0 10px 30px -8px rgb(0 0 0 / 0.7);
     color-scheme: dark;
   }
 }
@@ -62,6 +67,7 @@
   --color-surface-2: var(--surface-2);
   --color-ink: var(--ink);
   --color-muted: var(--muted);
+  --color-faint: var(--faint);
   --color-line: var(--line);
   --color-pink: var(--pink);
   --color-pink-ink: var(--pink-ink);
@@ -77,9 +83,11 @@
   --color-paper-ink: var(--paper-ink);
   --color-paper-muted: var(--paper-muted);
   --color-note: var(--note);
-  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
-  --font-display: "Bricolage Grotesque", "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, ui-sans-serif, sans-serif;
+  --font-display: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, ui-sans-serif, sans-serif;
+  --font-brand: "Bricolage Grotesque", "Inter", ui-sans-serif, system-ui, sans-serif;
   --shadow-card: var(--shadow);
+  --shadow-pop: var(--shadow-pop);
 }
 
 html,
@@ -97,7 +105,35 @@ body {
 
 .font-display {
   font-family: var(--font-display);
+  letter-spacing: -0.022em;
+}
+
+.font-brand {
+  font-family: var(--font-brand);
   letter-spacing: -0.02em;
+}
+
+/* Large page titles, iOS style */
+.title-lg {
+  font-size: 32px;
+  line-height: 1.1;
+  font-weight: 700;
+  letter-spacing: -0.026em;
+}
+
+/* Press feedback for tappable rows and cards */
+.tap {
+  transition: background-color 0.15s, transform 0.15s;
+}
+.tap:active {
+  background-color: var(--surface-2);
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  scrollbar-width: none;
 }
 
 .tabular {
@@ -115,12 +151,25 @@ select {
 }
 
 @keyframes pop {
-  0% { transform: scale(0.9); opacity: 0; }
-  60% { transform: scale(1.04); opacity: 1; }
-  100% { transform: scale(1); }
+  0% { transform: translateY(4px) scale(0.98); opacity: 0; }
+  100% { transform: none; opacity: 1; }
 }
 .animate-pop {
-  animation: pop 0.28s ease-out;
+  animation: pop 0.2s ease-out;
+}
+@keyframes sheet-up {
+  0% { transform: translateY(100%); }
+  100% { transform: none; }
+}
+@keyframes fade-in {
+  0% { opacity: 0; }
+  100% { opacity: 1; }
+}
+.animate-sheet {
+  animation: sheet-up 0.28s cubic-bezier(0.2, 0.9, 0.3, 1);
+}
+.animate-fade {
+  animation: fade-in 0.2s ease-out;
 }
 
 /* receipt: torn zigzag edge top and bottom */
@@ -144,5 +193,20 @@ select {
 .pet-blink { animation: pet-blink 4.5s ease-in-out infinite; }
 
 @media (prefers-reduced-motion: reduce) {
-  .animate-pop, .pet-bounce, .pet-breathe, .pet-droop, .pet-wobble, .pet-blink { animation: none; }
+  .animate-pop, .animate-sheet, .animate-fade, .pet-bounce, .pet-breathe, .pet-droop, .pet-wobble, .pet-blink { animation: none; }
+}
+
+/* Grouped list with inset hairlines between rows (inset set per list via --inset) */
+.list > * {
+  position: relative;
+}
+.list > * + *::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: var(--inset, 16px);
+  height: 1px;
+  background: var(--line);
+  pointer-events: none;
 }

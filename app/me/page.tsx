@@ -5,10 +5,10 @@ import { useEffect, useState } from "react";
 import { Shell } from "@/components/shell";
 import { useAuth } from "@/components/auth";
 import { COLORS } from "@/components/auth-forms";
-import { Avatar, Button, Card, Field, SectionTitle, Toggle, inputCls, cx, useToast } from "@/components/ui";
+import { Avatar, Button, GroupLabel, GroupNote, List, Row, Toggle, cx, rowInputCls, useToast } from "@/components/ui";
 import { supabase, errMsg } from "@/lib/supabase";
 import { currentSubscription, disablePush, enablePush, isIos, isStandalone, pushSupported } from "@/lib/push-client";
-import { IconEye, IconFlame, IconJar, IconMoon, IconPact } from "@/components/icons";
+import { IconCheck, IconChevronDown } from "@/components/icons";
 
 export default function MePage() {
   return (
@@ -27,6 +27,7 @@ function Me() {
   const [saving, setSaving] = useState(false);
   const [push, setPush] = useState<"loading" | "on" | "off" | "unsupported" | "ios">("loading");
   const [pushBusy, setPushBusy] = useState(false);
+  const [how, setHow] = useState(false);
 
   useEffect(() => {
     if (profile) {
@@ -76,89 +77,89 @@ function Me() {
 
   return (
     <div>
-      <div className="flex flex-col items-center pb-2 pt-2 text-center">
-        <Avatar profile={{ display_name: name || "?", color }} size={84} />
-        <h1 className="mt-3 font-display text-2xl font-extrabold">{profile?.display_name}</h1>
-        <p className="text-sm text-muted">@{profile?.username} · {session?.user.email}</p>
+      <div className="flex flex-col items-center pb-1 pt-3 text-center">
+        <Avatar profile={{ display_name: name || "?", color }} size={88} />
+        <h1 className="mt-3 text-[24px] font-bold tracking-[-0.02em]">{profile?.display_name}</h1>
+        <p className="text-[15px] text-muted">@{profile?.username}</p>
       </div>
 
-      <SectionTitle>Profile</SectionTitle>
-      <Card className="space-y-4 p-4">
-        <Field label="Display name">
-          <input className={inputCls} maxLength={40} value={name} onChange={(e) => setName(e.target.value)} />
-        </Field>
-        <div>
-          <span className="mb-1.5 block text-sm font-semibold">Color</span>
-          <div className="flex flex-wrap gap-2">
+      <GroupLabel>Profile</GroupLabel>
+      <List>
+        <label className="flex min-h-[52px] items-center gap-3 px-4">
+          <span className="text-[16px]">Name</span>
+          <input className={rowInputCls} maxLength={40} value={name} onChange={(e) => setName(e.target.value)} aria-label="Display name" />
+        </label>
+        <div className="flex min-h-[52px] items-center gap-3 px-4">
+          <span className="text-[16px]">Email</span>
+          <span className="min-w-0 flex-1 truncate text-right text-[16px] text-muted">{session?.user.email}</span>
+        </div>
+        <div className="px-4 py-3">
+          <span className="text-[16px]">Color</span>
+          <div className="mt-2.5 flex flex-wrap justify-between gap-y-2">
             {COLORS.map((c) => (
               <button
                 key={c}
                 type="button"
                 onClick={() => setColor(c)}
-                className={cx("h-9 w-9 rounded-full transition", color === c && "ring-2 ring-ink ring-offset-2 ring-offset-surface")}
+                className="flex h-8 w-8 items-center justify-center rounded-full text-white transition active:scale-90"
                 style={{ background: c }}
                 aria-label={`Color ${c}`}
-              />
+                aria-pressed={color === c}
+              >
+                {color === c ? <IconCheck size={16} strokeWidth={3} /> : null}
+              </button>
             ))}
           </div>
         </div>
-        {dirty ? (
-          <Button onClick={save} loading={saving} className="w-full">
-            Save
-          </Button>
-        ) : null}
-      </Card>
+      </List>
+      {dirty ? (
+        <Button onClick={save} loading={saving} size="lg" className="animate-pop mt-3 w-full">
+          Save changes
+        </Button>
+      ) : null}
 
-      <SectionTitle>Notifications</SectionTitle>
-      <Card className="p-4">
-        <div className="flex items-center justify-between gap-4">
-          <div>
-            <div className="font-semibold">Nudges and reminders</div>
-            <div className="text-sm text-muted">
-              {push === "ios"
-                ? "On iPhone: tap Share, then Add to Home Screen. Open Pinky from your home screen to turn these on."
-                : push === "unsupported"
-                  ? "This browser doesn't support notifications."
-                  : "Friend nudges, doubts, invites, and a reminder around 9pm if you haven't checked in."}
-            </div>
+      <GroupLabel>Notifications</GroupLabel>
+      <List>
+        <Row
+          title="Reminders and nudges"
+          trailing={push === "on" || push === "off" ? <Toggle checked={push === "on"} onChange={(v) => !pushBusy && togglePush(v)} label="Notifications" /> : null}
+        />
+      </List>
+      <GroupNote>
+        {push === "ios"
+          ? "On iPhone, tap Share, then Add to Home Screen. Open Pinky from your home screen to turn these on."
+          : push === "unsupported"
+            ? "This browser doesn't support notifications."
+            : "A reminder around 9pm if you haven't checked in, plus friend nudges, doubts and invites."}
+      </GroupNote>
+
+      <GroupLabel>About</GroupLabel>
+      <List>
+        <button className="tap flex min-h-[52px] w-full items-center gap-3 px-4 text-left" onClick={() => setHow((v) => !v)} aria-expanded={how}>
+          <span className="flex-1 text-[16px] font-medium">How Pinky works</span>
+          <IconChevronDown size={16} className={cx("text-faint transition", how && "rotate-180")} />
+        </button>
+        {how ? (
+          <div className="animate-pop space-y-2.5 px-4 pb-4 pt-3 text-[15px] leading-snug text-muted">
+            <p>Make a pact with friends: a goal, a price per miss, and what counts as breaking it.</p>
+            <p>Check in before midnight. If you don&apos;t, it counts as broke.</p>
+            <p>The group streak only grows when everyone keeps it.</p>
+            <p>You get one doubt a week per pact. If someone doubts you, post a photo or own up within 24 hours.</p>
+            <p>Misses go in the pot. Settle up with an e-transfer when it ends.</p>
           </div>
-          {push === "on" || push === "off" ? (
-            <Toggle checked={push === "on"} onChange={(v) => !pushBusy && togglePush(v)} label="Notifications" />
-          ) : null}
-        </div>
-      </Card>
+        ) : null}
+      </List>
 
-      <SectionTitle>How Pinky works</SectionTitle>
-      <Card className="space-y-3 p-4 text-sm text-muted">
-        {[
-          [IconPact, "Make a pact with friends: a goal, a stake per miss, and what counts as breaking it."],
-          [IconMoon, "Check in before midnight. If you don't, it counts as broke."],
-          [IconFlame, "The group streak only grows if everyone keeps it."],
-          [IconEye, "One doubt a week per pact. Doubted? Post a photo or own up within 24h."],
-          [IconJar, "Misses go in the pot. Settle up with e-transfer when it ends."],
-        ].map(([Icon, text]) => {
-          const I = Icon as typeof IconPact;
-          return (
-            <p key={text as string} className="flex gap-2.5">
-              <I size={18} className="mt-px shrink-0 text-pink" />
-              <span>{text as string}</span>
-            </p>
-          );
-        })}
-      </Card>
-
-      <div className="mt-6">
-        <Button
-          variant="soft"
-          className="w-full"
+      <List className="mt-8">
+        <Row
+          title={<span className="block text-center">Log out</span>}
+          tone="danger"
           onClick={async () => {
             await supabase.auth.signOut();
             router.replace("/");
           }}
-        >
-          Log out
-        </Button>
-      </div>
+        />
+      </List>
     </div>
   );
 }

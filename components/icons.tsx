@@ -262,3 +262,45 @@ export function IconTrash(p: P) {
     </Base>
   );
 }
+
+export function IconChevronRight(p: P) {
+  return (
+    <Base {...p}>
+      <path d="M9.5 6l6 6-6 6" />
+    </Base>
+  );
+}
+
+export function IconChevronDown(p: P) {
+  return (
+    <Base {...p}>
+      <path d="M6 9.5l6 6 6-6" />
+    </Base>
+  );
+}
+
+export function IconPlus(p: P) {
+  return (
+    <Base {...p}>
+      <path d="M12 5v14M5 12h14" />
+    </Base>
+  );
+}
+
+export function IconMore(p: P) {
+  return (
+    <Base {...p}>
+      <path d="M6 12h.01M12 12h.01M18 12h.01" strokeWidth={3.2} />
+    </Base>
+  );
+}
+
+/** Box with an arrow out of the top: share. */
+export function IconShare(p: P) {
+  return (
+    <Base {...p}>
+      <path d="M12 3.5v11M8 7.5l4-4 4 4" />
+      <path d="M8.5 10.5H7a2 2 0 0 0-2 2V18a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-5.5a2 2 0 0 0-2-2h-1.5" />
+    </Base>
+  );
+}

@@ -3,11 +3,11 @@
 import { useCallback, useEffect, useState } from "react";
 import { Shell } from "@/components/shell";
 import { useAuth } from "@/components/auth";
-import { Avatar, Button, Card, SectionTitle, inputCls, useToast } from "@/components/ui";
+import { Avatar, Button, Card, IconButton, LargeTitle, List, Row, SectionTitle, Sheet, Tile, inputCls, useToast } from "@/components/ui";
 import { supabase, errMsg } from "@/lib/supabase";
 import { action } from "@/lib/api";
 import type { Profile } from "@/lib/types";
-import { IconX } from "@/components/icons";
+import { IconMore, IconShare, IconX } from "@/components/icons";
 
 type Row = { id: string; status: "pending" | "accepted"; requester: string; addressee: string; other: Profile; incoming: boolean };
 
@@ -112,117 +112,126 @@ function Friends() {
   const incoming = (rows ?? []).filter((r) => r.status === "pending" && r.incoming);
   const outgoing = (rows ?? []).filter((r) => r.status === "pending" && !r.incoming);
   const friends = (rows ?? []).filter((r) => r.status === "accepted");
+  const confirmed = friends.find((r) => r.other.id === confirm);
 
   return (
     <div>
-      <h1 className="px-1 font-display text-[28px] font-extrabold">Friends</h1>
-      <p className="mb-4 px-1 text-muted">The people who&apos;ll hold you to it.</p>
+      <LargeTitle title="Friends" sub={friends.length ? `${friends.length} ${friends.length === 1 ? "person" : "people"} holding you to it` : "The people who hold you to it"} />
 
-      <Card className="p-4">
-        <form onSubmit={add} className="flex gap-2">
-          <div className="relative flex-1">
-            <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-muted">@</span>
-            <input
-              className={inputCls + " pl-8"}
-              placeholder="username"
-              autoCapitalize="none"
-              autoCorrect="off"
-              spellCheck={false}
-              value={username}
-              onChange={(e) => setUsername(e.target.value.replace(/\s/g, ""))}
-              aria-label="Friend's username"
-            />
-          </div>
-          <Button type="submit" loading={busy === "add"} size="lg">
-            Add
-          </Button>
-        </form>
-        <div className="mt-3 flex items-center gap-2 rounded-2xl bg-surface-2 p-3">
-          <div className="min-w-0 flex-1">
-            <div className="text-xs font-semibold text-muted">Or send your link</div>
-            <div className="truncate text-sm font-semibold">{link.replace(/^https?:\/\//, "")}</div>
-          </div>
-          <Button size="sm" variant="primary" onClick={share}>
-            Share
-          </Button>
+      <form onSubmit={add} className="flex gap-2">
+        <div className="relative flex-1">
+          <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[16px] text-faint">@</span>
+          <input
+            className={inputCls + " h-11 rounded-full !bg-surface py-0 pl-8 shadow-card"}
+            placeholder="username to add"
+            autoCapitalize="none"
+            autoCorrect="off"
+            spellCheck={false}
+            value={username}
+            onChange={(e) => setUsername(e.target.value.replace(/\s/g, ""))}
+            aria-label="Friend's username"
+          />
         </div>
-      </Card>
+        <Button type="submit" loading={busy === "add"} disabled={!username.trim()}>
+          Add
+        </Button>
+      </form>
+
+      <List className="mt-3" inset={60}>
+        <Row
+          onClick={share}
+          leading={
+            <Tile>
+              <IconShare size={17} />
+            </Tile>
+          }
+          title="Share your link"
+          subtitle={link.replace(/^https?:\/\//, "")}
+          chevron
+        />
+      </List>
 
       {incoming.length ? (
         <>
           <SectionTitle>Requests</SectionTitle>
-          <Card className="divide-y divide-line px-4">
+          <List inset={68}>
             {incoming.map((r) => (
-              <div key={r.id} className="flex items-center gap-3 py-3">
-                <Avatar profile={r.other} size={40} />
-                <div className="flex-1">
-                  <div className="font-semibold">{r.other.display_name}</div>
-                  <div className="text-xs text-muted">@{r.other.username}</div>
-                </div>
-                <Button size="sm" loading={busy === r.id} onClick={() => respond(r.id, true)}>
-                  Accept
-                </Button>
-                <Button size="sm" variant="ghost" onClick={() => respond(r.id, false)} aria-label="Decline">
-                  <IconX size={16} />
-                </Button>
-              </div>
+              <Row
+                key={r.id}
+                leading={<Avatar profile={r.other} size={40} />}
+                title={r.other.display_name}
+                subtitle={`@${r.other.username}`}
+                trailing={
+                  <>
+                    <Button size="sm" loading={busy === r.id} onClick={() => respond(r.id, true)}>
+                      Accept
+                    </Button>
+                    <IconButton tone="ghost" label={`Decline ${r.other.display_name}`} onClick={() => respond(r.id, false)} className="-mr-2">
+                      <IconX size={16} />
+                    </IconButton>
+                  </>
+                }
+              />
             ))}
-          </Card>
+          </List>
         </>
       ) : null}
 
-      <SectionTitle>Your people {friends.length ? `· ${friends.length}` : ""}</SectionTitle>
-      <Card className="divide-y divide-line px-4">
-        {rows === null ? (
-          <p className="py-4 text-sm text-muted">Loading...</p>
-        ) : friends.length === 0 ? (
-          <p className="py-4 text-sm text-muted">No friends yet. Add someone by username or send them your link.</p>
-        ) : (
-          friends.map((r) => (
-            <div key={r.id} className="flex items-center gap-3 py-3">
-              <Avatar profile={r.other} size={40} />
-              <div className="flex-1">
-                <div className="font-semibold">{r.other.display_name}</div>
-                <div className="text-xs text-muted">@{r.other.username}</div>
-              </div>
-              {confirm === r.other.id ? (
-                <>
-                  <Button size="sm" variant="danger" loading={busy === r.other.id} onClick={() => remove(r.other.id)}>
-                    Remove
-                  </Button>
-                  <Button size="sm" variant="ghost" onClick={() => setConfirm(null)}>
-                    Keep
-                  </Button>
-                </>
-              ) : (
-                <button className="text-xs font-semibold text-muted hover:text-broke" onClick={() => setConfirm(r.other.id)}>
-                  Remove
-                </button>
-              )}
-            </div>
-          ))
-        )}
-      </Card>
+      <SectionTitle>Your friends</SectionTitle>
+      {rows === null ? (
+        <p className="px-1 text-[15px] text-muted">Loading...</p>
+      ) : friends.length === 0 ? (
+        <Card className="px-6 py-8 text-center">
+          <p className="text-[15px] text-muted">No friends yet. Add someone by username, or share your link and they can add you.</p>
+        </Card>
+      ) : (
+        <List inset={68}>
+          {friends.map((r) => (
+            <Row
+              key={r.id}
+              leading={<Avatar profile={r.other} size={40} />}
+              title={r.other.display_name}
+              subtitle={`@${r.other.username}`}
+              trailing={
+                <IconButton tone="ghost" label={`Options for ${r.other.display_name}`} onClick={() => setConfirm(r.other.id)} className="-mr-2">
+                  <IconMore size={20} />
+                </IconButton>
+              }
+            />
+          ))}
+        </List>
+      )}
 
       {outgoing.length ? (
         <>
           <SectionTitle>Waiting on them</SectionTitle>
-          <Card className="divide-y divide-line px-4">
+          <List inset={68}>
             {outgoing.map((r) => (
-              <div key={r.id} className="flex items-center gap-3 py-3">
-                <Avatar profile={r.other} size={36} />
-                <div className="flex-1">
-                  <div className="font-semibold">{r.other.display_name}</div>
-                  <div className="text-xs text-muted">@{r.other.username}</div>
-                </div>
-                <button className="text-xs font-semibold text-muted hover:text-broke" onClick={() => remove(r.other.id)}>
-                  Cancel
-                </button>
-              </div>
+              <Row
+                key={r.id}
+                leading={<Avatar profile={r.other} size={40} />}
+                title={r.other.display_name}
+                subtitle={`@${r.other.username}`}
+                trailing={
+                  <Button size="sm" variant="ghost" onClick={() => remove(r.other.id)}>
+                    Cancel
+                  </Button>
+                }
+              />
             ))}
-          </Card>
+          </List>
         </>
       ) : null}
+
+      <Sheet open={confirm !== null} onClose={() => setConfirm(null)} title={confirmed ? confirmed.other.display_name : ""}>
+        <p className="mb-3 px-1 text-[15px] text-muted">Removing a friend doesn&apos;t take them out of pacts you&apos;re already in together.</p>
+        <Button variant="danger" size="lg" className="w-full" loading={busy === confirm} onClick={() => confirm && remove(confirm)}>
+          Remove friend
+        </Button>
+        <Button variant="soft" size="lg" className="mt-2 w-full" onClick={() => setConfirm(null)}>
+          Cancel
+        </Button>
+      </Sheet>
     </div>
   );
 }

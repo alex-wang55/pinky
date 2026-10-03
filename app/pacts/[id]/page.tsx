@@ -1,11 +1,10 @@
 "use client";
 
-import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Shell } from "@/components/shell";
 import { useAuth } from "@/components/auth";
-import { Button, Card, PageLoader, Segmented, SectionTitle, useToast } from "@/components/ui";
+import { Button, Card, GroupLabel, List, PageLoader, Row, Segmented, SectionTitle, Sheet, Tile, useToast } from "@/components/ui";
 import { CheckIn } from "@/components/checkin";
 import { Feed, Ledger, Squad } from "@/components/pact-parts";
 import { PetPanel } from "@/components/pet-panel";
@@ -16,7 +15,7 @@ import { computePact, goalLabel, wrapWeek } from "@/lib/stats";
 import { addDays, dayOfWeek, prettyDay, shortDay } from "@/lib/dates";
 import { money } from "@/lib/money";
 import type { Pact } from "@/lib/types";
-import { IconArrowRight, IconCalendar, IconChart, IconFlame, IconPlusUser, IconX } from "@/components/icons";
+import { IconCalendar, IconChart, IconPlusUser } from "@/components/icons";
 
 export default function PactPage() {
   return (
@@ -80,10 +79,10 @@ function PactView() {
 
   if (missing)
     return (
-      <Card className="p-6 text-center">
-        <p className="font-semibold">This pact doesn&apos;t exist or you&apos;re not in it.</p>
+      <Card className="mt-6 px-6 py-8 text-center">
+        <p className="text-[17px] font-semibold">This pact doesn&apos;t exist, or you&apos;re not in it.</p>
         <Button href="/" className="mt-4" variant="soft">
-          Back home
+          Back to pacts
         </Button>
       </Card>
     );
@@ -92,61 +91,45 @@ function PactView() {
   const pact = bundle.pacts[0];
   const me = bundle.members.find((m) => m.user_id === userId);
   const isInvited = me?.status === "invited";
+  const offs = pact.off_days_per_week;
+  const terms = [
+    pact.goal_type === "count" ? `${goalLabel(pact)}` : pact.goal_type === "weekly" ? `${pact.target}x a week` : "Every day",
+    `${money(pact.stake_cents)} a miss${pact.escalating ? ", doubling" : ""}`,
+    offs > 0 && pact.goal_type !== "weekly" ? `${offs} off-day${offs === 1 ? "" : "s"} a week` : null,
+  ].filter(Boolean);
+  const showWrap = stats.started && addDays(wrapWeek(stats.today), 6) >= pact.start_date && [0, 1].includes(dayOfWeek(stats.today));
 
   return (
     <div>
-      <Card className="overflow-hidden">
-        <div className="bg-gradient-to-br from-pink-soft to-surface p-5">
-          <div className="flex items-start gap-3">
-            <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-surface text-3xl shadow-card">{pact.emoji}</span>
-            <div className="min-w-0 flex-1">
-              <h1 className="font-display text-2xl font-extrabold leading-tight">{pact.name}</h1>
-              <p className="text-sm text-muted">
-                {stats.ended
-                  ? `Ended ${shortDay(pact.end_date)}`
-                  : stats.started
-                    ? `Day ${stats.dayNumber} of ${stats.totalDays} · ${stats.daysLeft} left`
-                    : `Starts ${prettyDay(pact.start_date, stats.today)}`}
-              </p>
-            </div>
-          </div>
-          <div className="mt-4 flex flex-wrap gap-1.5 text-xs font-semibold">
-            <Chip>{goalLabel(pact)}</Chip>
-            <Chip>
-              {money(pact.stake_cents)}/miss{pact.escalating ? ", escalating" : ""}
-            </Chip>
-            {pact.off_days_per_week > 0 ? <Chip>{pact.off_days_per_week} off-day{pact.off_days_per_week === 1 ? "" : "s"}/wk</Chip> : null}
-            <Chip>
-              {shortDay(pact.start_date)} to {shortDay(pact.end_date)}
-            </Chip>
-          </div>
-          {pact.rules ? (
-            <p className="mt-3 rounded-xl bg-surface/70 px-3 py-2 text-sm">
-              <span className="font-semibold">Breaking it means: </span>
-              {pact.rules}
-            </p>
-          ) : null}
+      <div className="flex items-center gap-3 px-1 pt-1">
+        <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-surface text-[30px] shadow-card">{pact.emoji}</span>
+        <div className="min-w-0">
+          <h1 className="text-[26px] font-bold leading-tight tracking-[-0.02em]">{pact.name}</h1>
+          <p className="text-[15px] text-muted">
+            {stats.ended
+              ? `Ended ${shortDay(pact.end_date)}`
+              : stats.started
+                ? `Day ${stats.dayNumber} of ${stats.totalDays}, ${stats.daysLeft} to go`
+                : `Starts ${prettyDay(pact.start_date, stats.today)}`}
+          </p>
         </div>
-        <div className="grid grid-cols-3 divide-x divide-line border-t border-line">
-          <Stat
-            label={`Group ${stats.unit}s`}
-            value={
-              <span className="inline-flex items-center gap-1">
-                <IconFlame size={18} className={stats.groupStreak > 0 ? "text-pink" : "text-muted"} />
-                {stats.groupStreak}
-              </span>
-            }
-          />
-          <Stat label="Best streak" value={String(stats.bestGroupStreak)} />
-          <Stat label="Pot" value={money(stats.potCents)} />
-        </div>
-      </Card>
+      </div>
+      <p className="mt-3 px-1 text-[15px] text-muted">
+        {terms.join(" · ")}
+        {pact.rules ? (
+          <>
+            <br />
+            <span className="text-ink">Breaking it means:</span> {pact.rules}
+          </>
+        ) : null}
+      </p>
 
       {!isInvited ? <PetPanel pact={pact} stats={stats} onChange={load} /> : null}
 
       {isInvited ? (
-        <Card className="mt-3 p-4">
-          <p className="font-semibold">You&apos;re invited to this pact.</p>
+        <Card className="mt-4 p-4">
+          <p className="text-[17px] font-semibold">You&apos;re invited to this pact</p>
+          <p className="mt-0.5 text-[15px] text-muted">You start counting from the day you join.</p>
           <div className="mt-3 grid grid-cols-2 gap-2">
             <Button
               onClick={async () => {
@@ -156,7 +139,7 @@ function PactView() {
                 load();
               }}
             >
-              I&apos;m in
+              Join
             </Button>
             <Button
               variant="soft"
@@ -174,110 +157,96 @@ function PactView() {
         <>
           {!stats.ended ? (
             <>
-              <SectionTitle>{pact.goal_type === "weekly" ? "Your week" : "Your check-in"}</SectionTitle>
+              <SectionTitle>{pact.goal_type === "weekly" ? "This week" : "Today"}</SectionTitle>
               <Card className="p-4">
                 <CheckIn pact={pact} stats={stats} userId={userId} doubts={bundle.doubts} onChange={load} full />
               </Card>
             </>
           ) : (
-            <Link href={`/pacts/${pact.id}/recap`} className="mt-3 block">
-              <Card className="flex items-center justify-between bg-ink p-4 text-bg">
-                <span className="font-display text-lg font-bold">See the final recap</span>
-                <IconArrowRight size={20} />
-              </Card>
-            </Link>
+            <List className="mt-4" inset={60}>
+              <Row
+                href={`/pacts/${pact.id}/recap`}
+                leading={
+                  <Tile>
+                    <IconChart size={18} />
+                  </Tile>
+                }
+                title="See the final recap"
+                subtitle="Who kept it, who paid up, and the best confessions"
+                chevron
+              />
+            </List>
           )}
+
+          {showWrap ? (
+            <List className="mt-3" inset={60}>
+              <Row
+                href={`/pacts/${pact.id}/week`}
+                leading={
+                  <Tile>
+                    <IconCalendar size={18} />
+                  </Tile>
+                }
+                title="Weekly wrap is in"
+                subtitle="How last week went and who carried the group"
+                chevron
+              />
+            </List>
+          ) : null}
 
           <SectionTitle
             right={
               !stats.ended ? (
-                <button
-                  className="flex items-center gap-1 rounded-full px-2 py-1 text-xs font-semibold text-pink hover:bg-pink-soft"
-                  onClick={() => setAdding((a) => !a)}
-                  aria-expanded={adding}
-                >
-                  {adding ? <IconX size={14} /> : <IconPlusUser size={14} />}
-                  {adding ? "Close" : "Add people"}
-                </button>
+                <Button size="sm" variant="plain" onClick={() => setAdding(true)}>
+                  <IconPlusUser size={16} />
+                  Add
+                </Button>
               ) : null
             }
           >
             Squad
           </SectionTitle>
-          {adding && !stats.ended ? (
-            <Card className="animate-pop mb-3 p-4">
-              <AddPeople pact={pact} memberIds={bundle.members.map((m) => m.user_id)} onChange={load} />
-            </Card>
-          ) : null}
-          <Card className="p-4">
-            <Squad pact={pact} stats={stats} members={bundle.members} userId={userId} nudgedToday={nudged} hypes={bundle.hypes} onNudged={load} />
-          </Card>
+          <Squad pact={pact} stats={stats} members={bundle.members} userId={userId} nudgedToday={nudged} hypes={bundle.hypes} onNudged={load} />
 
-          {stats.started && addDays(wrapWeek(stats.today), 6) >= pact.start_date && [0, 1].includes(dayOfWeek(stats.today)) ? (
-            <Link href={`/pacts/${pact.id}/week`} className="mt-3 block">
-              <Card className="flex items-center gap-3 border-pink/30 bg-pink-soft p-4">
-                <IconCalendar size={22} className="shrink-0 text-pink" />
-                <span className="flex-1">
-                  <span className="block font-semibold">Weekly wrap is in</span>
-                  <span className="block text-sm text-muted">See how the week went and who carried the group.</span>
-                </span>
-                <IconArrowRight size={18} className="text-pink" />
-              </Card>
-            </Link>
-          ) : null}
-
-          <div className="mt-6">
+          <div className="mb-4 mt-8">
             <Segmented
               value={tab}
               onChange={setTab}
               options={[
-                { value: "feed", label: "Feed" },
-                { value: "pot", label: "Pot" },
-                { value: "info", label: "More" },
+                { value: "feed", label: "Activity" },
+                { value: "pot", label: `Pot ${money(stats.potCents)}` },
+                { value: "info", label: "Details" },
               ]}
             />
           </div>
-          <div className="mt-4">
-            {tab === "feed" ? (
-              <Feed
-                pact={pact}
-                stats={stats}
-                members={bundle.members}
-                checkins={bundle.checkins}
-                doubts={bundle.doubts}
-                reactions={bundle.reactions}
-                userId={userId}
-                proofUrls={proofUrls}
-                onChange={load}
-              />
-            ) : tab === "pot" ? (
-              <Card className="p-4">
-                <Ledger pact={pact} stats={stats} members={bundle.members} />
-              </Card>
-            ) : (
-              <InfoTab pact={pact} ended={stats.ended} memberIds={bundle.members.map((m) => m.user_id)} onChange={load} />
-            )}
-          </div>
+          {tab === "feed" ? (
+            <Feed
+              pact={pact}
+              stats={stats}
+              members={bundle.members}
+              checkins={bundle.checkins}
+              doubts={bundle.doubts}
+              reactions={bundle.reactions}
+              userId={userId}
+              proofUrls={proofUrls}
+              onChange={load}
+            />
+          ) : tab === "pot" ? (
+            <Ledger pact={pact} stats={stats} members={bundle.members} />
+          ) : (
+            <InfoTab pact={pact} ended={stats.ended} onAdd={() => setAdding(true)} />
+          )}
+
+          <Sheet open={adding && !stats.ended} onClose={() => setAdding(false)} title="Add people">
+            <AddPeople pact={pact} memberIds={bundle.members.map((m) => m.user_id)} onChange={load} />
+          </Sheet>
         </>
       )}
     </div>
   );
 }
 
-function Chip({ children }: { children: React.ReactNode }) {
-  return <span className="rounded-full bg-surface/80 px-2.5 py-1 ring-1 ring-line">{children}</span>;
-}
-
-function Stat({ label, value }: { label: string; value: React.ReactNode }) {
-  return (
-    <div className="px-2 py-3 text-center">
-      <div className="font-display text-xl font-extrabold tabular">{value}</div>
-      <div className="text-[10px] font-semibold uppercase tracking-wide text-muted">{label}</div>
-    </div>
-  );
-}
-
-function InfoTab({ pact, ended, memberIds, onChange }: { pact: Pact; ended: boolean; memberIds: string[]; onChange: () => void }) {
+function InfoTab({ pact, ended, onAdd }: { pact: Pact; ended: boolean; onAdd: () => void }) {
   const { session } = useAuth();
   const me = session!.user.id;
   const pactId = pact.id;
@@ -287,94 +256,87 @@ function InfoTab({ pact, ended, memberIds, onChange }: { pact: Pact; ended: bool
   const [busy, setBusy] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
 
+  async function hide() {
+    setBusy("hide");
+    const { error } = await supabase.rpc("hide_pact", { p_pact: pactId, p_hidden: true });
+    setBusy(null);
+    if (error) return toast(errMsg(error), "err");
+    toast("Hidden from your list");
+    router.replace("/");
+  }
+
+  async function remove() {
+    setBusy("del");
+    const { error } = await supabase.rpc("delete_pact", { p_pact: pactId });
+    setBusy(null);
+    if (error) return toast(errMsg(error), "err");
+    toast("Pact deleted");
+    router.replace("/");
+  }
+
   return (
-    <div className="space-y-3">
-      <Link href={`/pacts/${pactId}/week`}>
-        <Card className="flex items-center justify-between p-4">
-          <span className="flex items-center gap-2 font-semibold">
-            <IconCalendar size={18} className="text-pink" />
-            Weekly wrap
-          </span>
-          <IconArrowRight size={18} className="text-pink" />
-        </Card>
-      </Link>
-      <Link href={`/pacts/${pactId}/recap`}>
-        <Card className="flex items-center justify-between p-4">
-          <span className="flex items-center gap-2 font-semibold">
-            <IconChart size={18} className="text-pink" />
-            {ended ? "Final recap" : "Recap so far"}
-          </span>
-          <IconArrowRight size={18} className="text-pink" />
-        </Card>
-      </Link>
+    <div>
+      <List inset={60}>
+        <Row
+          href={`/pacts/${pactId}/week`}
+          leading={
+            <Tile>
+              <IconCalendar size={18} />
+            </Tile>
+          }
+          title="Weekly wrap"
+          chevron
+        />
+        <Row
+          href={`/pacts/${pactId}/recap`}
+          leading={
+            <Tile>
+              <IconChart size={18} />
+            </Tile>
+          }
+          title={ended ? "Final recap" : "Recap so far"}
+          chevron
+        />
+        {!ended ? (
+          <Row
+            onClick={onAdd}
+            leading={
+              <Tile tone="grey">
+                <IconPlusUser size={18} />
+              </Tile>
+            }
+            title="Add people"
+            chevron
+          />
+        ) : null}
+      </List>
 
-      {!ended ? (
-        <Card className="p-4">
-          <p className="mb-3 font-semibold">Add people</p>
-          <AddPeople pact={pact} memberIds={memberIds} onChange={onChange} />
-        </Card>
-      ) : null}
-
-      <Card className="space-y-2 p-4 text-sm text-muted">
-        <p className="font-semibold text-ink">House rules</p>
-        <p>• Check in before midnight. No check-in counts as broke.</p>
-        <p>• You get one doubt per week in each pact. The other person has 24h to post a photo or own up.</p>
-        <p>• Off-days don&apos;t break the streak but they&apos;re limited per week.</p>
-        <p>• The group streak resets if anyone breaks.</p>
+      <GroupLabel>House rules</GroupLabel>
+      <Card className="space-y-2.5 p-4 text-[15px] leading-snug">
+        <p>Check in before midnight. No check-in counts as broke.</p>
+        <p>Everyone gets one doubt a week per pact. Whoever gets doubted has 24 hours to post a photo or own up.</p>
+        <p>Off-days don&apos;t break the streak, but you only get so many a week.</p>
+        <p>The group streak resets if anyone breaks it.</p>
       </Card>
 
-      {ended ? (
-        <Card className="flex items-center justify-between gap-3 p-4">
-          <span className="text-sm text-muted">Done with this one? Take it off your home screen. You can bring it back later.</span>
-          <Button
-            size="sm"
-            variant="soft"
-            loading={busy === "hide"}
-            onClick={async () => {
-              setBusy("hide");
-              const { error } = await supabase.rpc("hide_pact", { p_pact: pactId, p_hidden: true });
-              setBusy(null);
-              if (error) return toast(errMsg(error), "err");
-              toast("Hidden from your list");
-              router.replace("/");
-            }}
-          >
-            Hide
-          </Button>
-        </Card>
+      {ended || isCreator ? (
+      <List className="mt-6">
+        {ended ? <Row title="Hide from my list" subtitle="You can bring it back later from the home screen." onClick={hide} trailing={busy === "hide" ? <span className="text-[13px] text-muted">...</span> : null} /> : null}
+        {isCreator ? <Row title="Delete this pact" tone="danger" onClick={() => setConfirmDelete(true)} /> : null}
+      </List>
       ) : null}
 
-      {isCreator ? (
-        <Card className="p-4">
-          {confirmDelete ? (
-            <div className="flex items-center gap-2">
-              <span className="flex-1 text-sm font-semibold">Delete for everyone? Check-ins, confessions and the recap go too. This can&apos;t be undone.</span>
-              <Button size="sm" variant="ghost" onClick={() => setConfirmDelete(false)}>
-                Cancel
-              </Button>
-              <Button
-                size="sm"
-                variant="danger"
-                loading={busy === "del"}
-                onClick={async () => {
-                  setBusy("del");
-                  const { error } = await supabase.rpc("delete_pact", { p_pact: pactId });
-                  setBusy(null);
-                  if (error) return toast(errMsg(error), "err");
-                  toast("Pact deleted");
-                  router.replace("/");
-                }}
-              >
-                Delete
-              </Button>
-            </div>
-          ) : (
-            <button className="text-sm font-semibold text-broke" onClick={() => setConfirmDelete(true)}>
-              Delete this pact
-            </button>
-          )}
-        </Card>
-      ) : null}
+      <Sheet open={confirmDelete} onClose={() => setConfirmDelete(false)} title="Delete for everyone?">
+        <p className="px-1 text-[15px] text-muted">Check-ins, confessions and the recap go too. This can&apos;t be undone.</p>
+        <div className="mt-4 space-y-2">
+          <Button variant="danger" size="lg" className="w-full" loading={busy === "del"} onClick={remove}>
+            Delete pact
+          </Button>
+          <Button variant="soft" size="lg" className="w-full" onClick={() => setConfirmDelete(false)}>
+            Cancel
+          </Button>
+        </div>
+      </Sheet>
     </div>
   );
 }

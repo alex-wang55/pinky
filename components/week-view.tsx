@@ -147,7 +147,7 @@ export function WeekView({ b, asked }: { b: Bundle; asked: string | null }) {
           <p className="truncate text-sm text-muted">
             {pact.emoji} {pact.name}
           </p>
-          <h1 className="font-display text-[28px] font-extrabold leading-tight">{thisWeek ? "This week so far" : `Week of ${shortDay(ws)}`}</h1>
+          <h1 className="text-[28px] font-bold leading-tight tracking-[-0.02em]">{thisWeek ? "This week so far" : `Week of ${shortDay(ws)}`}</h1>
         </div>
       </div>
       <p className="mt-3 px-1 text-[17px] leading-relaxed">{story.join(" ")}</p>

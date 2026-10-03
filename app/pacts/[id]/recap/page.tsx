@@ -163,7 +163,7 @@ function Recap({ id }: { id: string }) {
       <div className="flex items-end justify-between gap-2 px-1">
         <div className="min-w-0 pb-1">
           <p className="text-sm text-muted">{stats.ended ? "Final recap" : "Recap so far"}</p>
-          <h1 className="mt-0.5 font-display text-[30px] font-extrabold leading-[1.1]">
+          <h1 className="mt-0.5 text-[30px] font-bold leading-[1.1] tracking-[-0.02em]">
             {pact.emoji} {pact.name}
           </h1>
         </div>
@@ -225,7 +225,7 @@ function Recap({ id }: { id: string }) {
       </p>
       <div className="mt-3 flex items-center justify-center gap-2 text-sm text-muted">
         <LogoMark size={18} />
-        <span className="font-display font-bold">pinky</span>
+        <span className="font-brand font-extrabold">pinky</span>
       </div>
     </div>
   );
