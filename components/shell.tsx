@@ -6,6 +6,7 @@ import { useEffect, type ReactNode } from "react";
 import { useAuth } from "./auth";
 import { Avatar, PageLoader, cx } from "./ui";
 import { Wordmark } from "./logo";
+import { SidebarPacts } from "./sidebar-pacts";
 
 const tabs = [
   { href: "/", label: "Pacts", wide: "Pacts", icon: (a: boolean) => <IconHome active={a} /> },
@@ -59,6 +60,7 @@ export function Shell({ children, title, back, wide }: { children: ReactNode; ti
             );
           })}
         </nav>
+        <SidebarPacts userId={session.user.id} path={path} />
         <Link href="/me" className="mt-auto flex items-center gap-3 rounded-2xl px-3 py-2.5 hover:bg-surface-2">
           <Avatar profile={profile} size={36} />
           <span className="min-w-0">
@@ -68,7 +70,7 @@ export function Shell({ children, title, back, wide }: { children: ReactNode; ti
         </Link>
       </aside>
 
-      <div className="mx-auto flex min-h-dvh w-full max-w-lg flex-col md:mx-0 md:max-w-none md:flex-1">
+      <div className="mx-auto flex min-h-dvh w-full min-w-0 max-w-lg flex-col md:mx-0 md:max-w-none md:flex-1">
         <header className={cx("sticky top-0 z-30 border-b border-line/70 bg-bg/85 backdrop-blur-md", !back && "md:hidden")}>
           <div className={cx("mx-auto flex h-14 items-center justify-between px-4 md:px-8", wide ? "md:max-w-2xl lg:max-w-5xl lg:box-content" : "md:max-w-2xl md:box-content")}>
             {back ? (

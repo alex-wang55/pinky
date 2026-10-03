@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import Link from "next/link";
+import { useEffect, useMemo, useState } from "react";
 import { supabase, errMsg } from "@/lib/supabase";
 import { action } from "@/lib/api";
 import type { Checkin, Doubt, Hype, Member, Pact, Reaction } from "@/lib/types";
@@ -9,6 +10,8 @@ import { addDays, prettyDay, shortDay, timeAgo, weekStart, todayIn } from "@/lib
 import { money } from "@/lib/money";
 import { Avatar, Button, StatusPill, cx, useToast } from "./ui";
 import { ProofButton } from "./checkin";
+import { PactGlyph, pactTint } from "./pact-icon";
+import type { Bundle } from "@/lib/data";
 import { IconCamera, IconClock, IconEmpty, IconEye, IconFlag, IconFlame, IconNudge, IconSmilePlus, IconSpark, IconX } from "./icons";
 
 export const EMOJIS = ["😂", "🫡", "💀", "🫶", "😤", "🔥"];
@@ -252,7 +255,9 @@ function FeedCard({
   proofUrl,
   canDoubtThisWeek,
   onChange,
+  pactLabel,
 }: {
+  pactLabel?: boolean;
   pact: Pact;
   stats: PactStats;
   c: Checkin;
@@ -330,6 +335,12 @@ function FeedCard({
             <StatusPill status={eff} small />
             <span className="ml-auto shrink-0 text-xs text-muted">{timeAgo(c.updated_at, now)}</span>
           </div>
+          {pactLabel ? (
+            <Link href={`/pacts/${pact.id}`} className="mt-0.5 flex w-fit items-center gap-1 text-xs font-semibold text-muted hover:text-ink">
+              <PactGlyph emoji={pact.emoji} size={13} className={pactTint(pact.emoji)} />
+              {pact.name}
+            </Link>
+          ) : null}
           {pact.goal_type === "count" && c.value !== null ? (
             <div className="mt-0.5 text-sm tabular">
               <b>{Number(c.value).toLocaleString()}</b> <span className="text-muted">/ {Number(pact.target).toLocaleString()} {pact.unit}</span>
@@ -491,6 +502,96 @@ export function Ledger({ pact, stats, members }: { pact: Pact; stats: PactStats;
       <p className="mt-4 text-center text-xs text-muted">
         Pinky never touches real money. Settle up with an e-transfer when the pact ends.
       </p>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Activity across every pact (home page)                               */
+/* ------------------------------------------------------------------ */
+/**
+ * The interesting stuff from all your pacts in one stream: confessions, notes,
+ * photos, slips, doubts. Plain "kept it" check-ins are left out so it doesn't
+ * turn into a wall of green.
+ */
+export function Activity({ bundle, statsByPact, userId, onChange }: { bundle: Bundle; statsByPact: Record<string, PactStats>; userId: string; onChange: () => void }) {
+  const [limit, setLimit] = useState(6);
+  const [proofUrls, setProofUrls] = useState<Record<string, string>>({});
+  const [now] = useState(() => Date.now());
+
+  const items = useMemo(() => {
+    const mine = new Set(bundle.members.filter((m) => m.user_id === userId && m.status === "active").map((m) => m.pact_id));
+    return bundle.checkins
+      .filter((c) => {
+        const st = statsByPact[c.pact_id];
+        if (!st || !mine.has(c.pact_id) || c.day < addDays(st.today, -14)) return false;
+        const ds = bundle.doubts.filter((d) => d.checkin_id === c.id);
+        return Boolean(c.note || c.proof_path || ds.length || bundle.reactions.some((r) => r.checkin_id === c.id) || effectiveStatus(c, ds, now).status === "broke");
+      })
+      .sort((a, b) => (a.updated_at < b.updated_at ? 1 : -1));
+  }, [bundle, statsByPact, userId, now]);
+
+  const shown = items.slice(0, limit);
+  const paths = shown.map((c) => c.proof_path).filter((x): x is string => Boolean(x) && !proofUrls[x as string]);
+  const pathKey = paths.join("|");
+  useEffect(() => {
+    if (!pathKey) return;
+    supabase.storage
+      .from("proofs")
+      .createSignedUrls(pathKey.split("|"), 60 * 60 * 6)
+      .then(({ data }) => {
+        if (!data) return;
+        setProofUrls((prev) => {
+          const next = { ...prev };
+          for (const x of data) if (x.path && x.signedUrl) next[x.path] = x.signedUrl;
+          return next;
+        });
+      });
+  }, [pathKey]);
+
+  if (!items.length) {
+    return (
+      <div className="rounded-2xl border border-dashed border-line px-4 py-6 text-center text-sm text-muted">
+        Quiet around here. Confessions, photos and slip-ups from your pacts show up here.
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      {shown.map((c) => {
+        const pact = bundle.pacts.find((p) => p.id === c.pact_id)!;
+        const stats = statsByPact[c.pact_id];
+        const members = bundle.members.filter((m) => m.pact_id === c.pact_id);
+        const byId = Object.fromEntries(members.map((m) => [m.user_id, m]));
+        const usedDoubt = bundle.doubts.some(
+          (d) => d.pact_id === c.pact_id && d.doubter_id === userId && todayIn(pact.timezone, new Date(d.created_at)) >= weekStart(stats.today),
+        );
+        return (
+          <FeedCard
+            key={c.id}
+            pactLabel
+            pact={pact}
+            stats={stats}
+            c={c}
+            member={byId[c.user_id]}
+            byId={byId}
+            doubts={bundle.doubts.filter((d) => d.checkin_id === c.id)}
+            reactions={bundle.reactions.filter((r) => r.checkin_id === c.id)}
+            userId={userId}
+            proofUrl={c.proof_path ? proofUrls[c.proof_path] : undefined}
+            canDoubtThisWeek={!usedDoubt}
+            onChange={onChange}
+          />
+        );
+      })}
+      {items.length > limit ? (
+        <div className="mt-3 text-center">
+          <Button variant="soft" size="sm" onClick={() => setLimit((l) => l + 6)}>
+            Show more
+          </Button>
+        </div>
+      ) : null}
     </div>
   );
 }

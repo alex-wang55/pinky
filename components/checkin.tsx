@@ -114,6 +114,7 @@ export function CheckIn({
     });
     setBusy(null);
     if (error) return toast(errMsg(error), "err");
+    window.dispatchEvent(new Event("pinky:refresh"));
     setEditing(false);
     if (status === "kept") {
       toast(pact.goal_type === "weekly" ? "Logged. Keep stacking." : "Kept it. Nice.");
@@ -141,6 +142,7 @@ export function CheckIn({
     const { error } = await supabase.rpc("undo_check_in", { p_pact: pact.id });
     setBusy(null);
     if (error) return toast(errMsg(error), "err");
+    window.dispatchEvent(new Event("pinky:refresh"));
     onChange();
   }
 

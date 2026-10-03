@@ -6,6 +6,7 @@ import { useAuth } from "@/components/auth";
 import { Shell } from "@/components/shell";
 import { Avatar, Button, Card, PageLoader, SectionTitle, StatusPill, useToast } from "@/components/ui";
 import { CheckIn } from "@/components/checkin";
+import { Activity } from "@/components/pact-parts";
 import { LogoMark } from "@/components/logo";
 import { supabase, errMsg } from "@/lib/supabase";
 import { loadBundle, type Bundle } from "@/lib/data";
@@ -48,7 +49,7 @@ function Dashboard({ userId }: { userId: string }) {
       if (error) throw error;
       const ids = (mine ?? []).map((m) => m.pact_id as string);
       const [b, n, fr, fa, hy] = await Promise.all([
-        loadBundle(ids),
+        loadBundle(ids, true),
         supabase
           .from("nudges")
           .select("id, pact_id, from:profiles!nudges_from_user_fkey(display_name,color), pact:pacts(name,emoji)")
@@ -112,7 +113,8 @@ function Dashboard({ userId }: { userId: string }) {
     const wraps = [...active, ...done].filter(
       (r) => r.stats.started && [0, 1].includes(dayOfWeek(r.stats.today)) && addDays(wrapWeek(r.stats.today), 6) >= r.p.start_date && wrapWeek(r.stats.today) <= r.p.end_date,
     );
-    return { invites, active, done, hiddenDone, doubtsOnMe, wraps };
+    const statsByPact = Object.fromEntries(rows.map((r) => [r.p.id, r.stats]));
+    return { invites, active, done, hiddenDone, doubtsOnMe, wraps, statsByPact };
   }, [bundle, userId]);
 
   async function dismissHypes() {
@@ -141,7 +143,8 @@ function Dashboard({ userId }: { userId: string }) {
         </p>
       </div>
 
-      <div className="lg:grid lg:grid-cols-2 lg:gap-x-4">
+      <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,400px)] lg:grid-rows-[auto_1fr] lg:items-start lg:gap-x-8">
+      <div className="lg:col-start-1 lg:row-start-1">
       {hypesIn.length ? (
         <Card className="mb-3 border-pink/30 bg-pink-soft p-4">
           <div className="flex items-start gap-3">
@@ -256,8 +259,6 @@ function Dashboard({ userId }: { userId: string }) {
         <Invite key={p.id} pact={p} inviter={members.find((m) => m.user_id === members.find((x) => x.user_id === userId)?.invited_by)?.profile.display_name} onDone={load} />
       ))}
 
-      </div>
-
       {computed.active.length === 0 && computed.invites.length === 0 ? (
         <Card className="p-6 text-center">
           <div className="mx-auto mb-3 w-fit">
@@ -278,16 +279,26 @@ function Dashboard({ userId }: { userId: string }) {
         </Card>
       ) : null}
 
-      <div className="space-y-3 lg:grid lg:grid-cols-2 lg:items-start lg:gap-4 lg:space-y-0">
+      <div className="space-y-3">
         {computed.active.map(({ p, members, stats }) => (
           <PactCard key={p.id} pact={p} stats={stats} members={members} userId={userId} doubts={bundle.doubts.filter((d) => d.pact_id === p.id)} onChange={load} />
         ))}
       </div>
+      </div>
+
+      {computed.active.length || computed.done.length ? (
+        <div className="lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:[&>*:first-child]:mt-0">
+          <SectionTitle>From your pacts</SectionTitle>
+          <Activity bundle={bundle} statsByPact={computed.statsByPact} userId={userId} onChange={load} />
+        </div>
+      ) : null}
+
+      <div className="lg:col-start-1 lg:row-start-2">
 
       {computed.done.length || computed.hiddenDone.length ? (
         <>
           <SectionTitle>Finished</SectionTitle>
-          <div className="space-y-2 lg:grid lg:grid-cols-2 lg:gap-2 lg:space-y-0">
+          <div className="space-y-2">
             {computed.done.map(({ p, stats, members }) => (
               <FinishedRow key={p.id} pact={p} stats={stats} members={members} userId={userId} onChange={load} />
             ))}
@@ -301,7 +312,7 @@ function Dashboard({ userId }: { userId: string }) {
                   : `Show ${computed.hiddenDone.length} hidden pact${computed.hiddenDone.length === 1 ? "" : "s"}`}
               </button>
               {showHidden ? (
-                <div className="mt-2 space-y-2 lg:grid lg:grid-cols-2 lg:gap-2 lg:space-y-0">
+                <div className="mt-2 space-y-2">
                   {computed.hiddenDone.map(({ p, stats, members }) => (
                     <FinishedRow key={p.id} pact={p} stats={stats} members={members} userId={userId} onChange={load} hidden />
                   ))}
@@ -311,6 +322,8 @@ function Dashboard({ userId }: { userId: string }) {
           ) : null}
         </>
       ) : null}
+      </div>
+      </div>
     </div>
   );
 }

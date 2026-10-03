@@ -9,6 +9,7 @@ import { Avatar, Button, Card, Field, SectionTitle, Toggle, inputCls, cx, useToa
 import { supabase, errMsg } from "@/lib/supabase";
 import { currentSubscription, disablePush, enablePush, isIos, isStandalone, pushSupported } from "@/lib/push-client";
 import { IconEye, IconFlame, IconJar, IconMoon, IconPact } from "@/components/icons";
+import { HistorySummary, MyConfessions, PastPacts, YearGrid, useHistory } from "@/components/history";
 
 export default function MePage() {
   return (
@@ -27,6 +28,7 @@ function Me() {
   const [saving, setSaving] = useState(false);
   const [push, setPush] = useState<"loading" | "on" | "off" | "unsupported" | "ios">("loading");
   const [pushBusy, setPushBusy] = useState(false);
+  const history = useHistory(session!.user.id);
 
   useEffect(() => {
     if (profile) {
@@ -82,7 +84,32 @@ function Me() {
         <p className="text-sm text-muted">@{profile?.username} · {session?.user.email}</p>
       </div>
 
+      <SectionTitle>Your history</SectionTitle>
+      <Card className="space-y-3 p-4">
+        {history ? (
+          <>
+            <HistorySummary h={history} />
+            <YearGrid h={history} />
+            <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted" aria-hidden="true">
+              <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-[3px] bg-kept" /> kept it</span>
+              <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-[3px] bg-broke" /> broke it</span>
+              <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-[3px] bg-off" /> off-day</span>
+              <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-[3px] bg-surface-2" /> no pact</span>
+            </div>
+          </>
+        ) : (
+          <div className="h-32 animate-pulse rounded-xl bg-surface-2" />
+        )}
+      </Card>
+
       <div className="lg:grid lg:grid-cols-2 lg:items-start lg:gap-8">
+      <div>
+        <SectionTitle>Past pacts</SectionTitle>
+        {history ? <PastPacts h={history} /> : null}
+        <SectionTitle>Your confessions</SectionTitle>
+        {history ? <MyConfessions h={history} /> : null}
+      </div>
+
       <div>
       <SectionTitle>Profile</SectionTitle>
       <Card className="space-y-4 p-4">
@@ -110,9 +137,7 @@ function Me() {
           </Button>
         ) : null}
       </Card>
-      </div>
 
-      <div>
       <SectionTitle>Notifications</SectionTitle>
       <Card className="p-4">
         <div className="flex items-center justify-between gap-4">
