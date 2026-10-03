@@ -3,7 +3,7 @@ import { addDays, diffDays, eachDay, maxDay, minDay, shortDay, todayIn, weekStar
 
 export type DayState = "kept" | "broke" | "off" | "pending";
 export type MissKind = "confessed" | "auto" | "doubt" | "short";
-export type Miss = { day: string; kind: MissKind; cents: number; label: string; comeback?: boolean };
+export type Miss = { day: string; kind: MissKind; cents: number; label: string; comeback?: boolean; fullCents?: number };
 
 export const DOUBT_WINDOW_MS = 24 * 3600 * 1000;
 
@@ -188,6 +188,7 @@ export function computePact(
         if (m.kind !== "confessed" && m.kind !== "auto") continue;
         const next = s.days[addDays(m.day, 1)];
         if (next === "kept") {
+          m.fullCents = m.cents;
           m.cents = Math.round(m.cents / 2);
           m.comeback = true;
           m.label += " · comeback, half off";

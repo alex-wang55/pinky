@@ -25,7 +25,7 @@ function Week({ id }: { id: string }) {
   const [b, setB] = useState<Bundle | null>(null);
 
   useEffect(() => {
-    loadBundle([id]).then(setB).catch((e) => toast(errMsg(e), "err"));
+    loadBundle([id], true).then(setB).catch((e) => toast(errMsg(e), "err"));
   }, [id, toast]);
 
   if (!b) return <PageLoader />;
