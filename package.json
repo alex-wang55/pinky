@@ -4,7 +4,8 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start"
+    "start": "next start",
+    "test": "vitest run"
   },
   "dependencies": {
     "@supabase/supabase-js": "2.117.2",
@@ -22,7 +23,8 @@
     "@types/web-push": "3.6.4",
     "postcss": "8.5.28",
     "tailwindcss": "4.3.3",
-    "typescript": "5.9.3"
+    "typescript": "5.9.3",
+    "vitest": "5.0.4"
   },
   "private": true,
   "engines": {

@@ -1,5 +1,7 @@
 # Pinky
 
+[![tests](https://github.com/alex-wang55/pinky/actions/workflows/tests.yml/badge.svg)](https://github.com/alex-wang55/pinky/actions/workflows/tests.yml)
+
 Pinky promise accountability with your friends. Make a pact, check in every night, be honest, and pay the pot when you slip.
 
 Live: https://pinky-lemon.vercel.app
@@ -28,3 +30,4 @@ See `.env.example`. `PUSH_SECRET` must match the `push_secret` row in `private.c
 
     npm install
     npm run dev
+    npm test   # unit tests for the pact rules in lib/stats.ts
