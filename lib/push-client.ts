@@ -33,6 +33,13 @@ export async function registerSW(): Promise<ServiceWorkerRegistration | null> {
   }
 }
 
+// The service worker sets a badge on the home screen icon when the nightly reminder lands.
+// Opening the app clears it.
+export function clearBadge(): void {
+  if (typeof navigator === "undefined" || !("clearAppBadge" in navigator)) return;
+  navigator.clearAppBadge().catch(() => {});
+}
+
 export async function currentSubscription(): Promise<PushSubscription | null> {
   if (!pushSupported()) return null;
   const reg = await navigator.serviceWorker.getRegistration("/");
