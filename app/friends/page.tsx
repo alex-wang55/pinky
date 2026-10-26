@@ -41,7 +41,7 @@ function Friends() {
   const load = useCallback(async () => {
     const { data, error } = await supabase
       .from("friendships")
-      .select("id, status, requester, addressee, r:profiles!friendships_requester_fkey(id,username,display_name,color), a:profiles!friendships_addressee_fkey(id,username,display_name,color)")
+      .select("id, status, requester, addressee, r:profiles!friendships_requester_fkey(id,username,display_name,color,avatar_path), a:profiles!friendships_addressee_fkey(id,username,display_name,color,avatar_path)")
       .order("created_at", { ascending: false });
     if (error) return toast(errMsg(error), "err");
     setRows(
