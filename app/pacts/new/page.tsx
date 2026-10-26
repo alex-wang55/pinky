@@ -62,7 +62,7 @@ function Form() {
     (async () => {
       const { data } = await supabase
         .from("friendships")
-        .select("requester, addressee, r:profiles!friendships_requester_fkey(id,username,display_name,color), a:profiles!friendships_addressee_fkey(id,username,display_name,color)")
+        .select("requester, addressee, r:profiles!friendships_requester_fkey(id,username,display_name,color,avatar_path), a:profiles!friendships_addressee_fkey(id,username,display_name,color,avatar_path)")
         .eq("status", "accepted");
       const list = (data ?? []).map((f) => ((f.requester === me ? f.a : f.r) as unknown as Profile));
       setFriends(list.sort((x, y) => x.display_name.localeCompare(y.display_name)));
