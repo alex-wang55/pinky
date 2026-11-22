@@ -31,37 +31,37 @@
   color-scheme: light;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #141015;
-    --surface: #1e1820;
-    --surface-2: #272029;
-    --ink: #f7eef2;
-    --muted: #a8999f;
-    --line: #322833;
-    --pink: #ff5a90;
-    --pink-ink: #1a0b12;
-    --pink-soft: #3d1a2a;
-    --kept: #45c98f;
-    --kept-soft: #143326;
-    --kept-ink: #07261a;
-    --pet-line: #f7eef2;
-    --broke: #ff6b6f;
-    --broke-soft: #3a1a1c;
-    --off: #e8b04f;
-    --off-soft: #362a14;
-    --blue: #7aa8f5;
-    --blue-soft: #19243a;
-    --violet: #b394f5;
-    --violet-soft: #2a1f3d;
-    --paper: #e4ddd3;
-    --paper-ink: #261d21;
-    --paper-muted: #6e6367;
-    --note: #3a3219;
-    --tape: rgb(255 255 255 / 0.14);
-    --shadow: 0 1px 2px rgb(0 0 0 / 0.3), 0 8px 24px -12px rgb(0 0 0 / 0.5);
-    color-scheme: dark;
-  }
+/* Dark palette. data-theme is set in <head> before first paint, from the choice on the Me page
+   or, on "System", from prefers-color-scheme. See lib/theme.ts. */
+:root[data-theme="dark"] {
+  --bg: #141015;
+  --surface: #1e1820;
+  --surface-2: #272029;
+  --ink: #f7eef2;
+  --muted: #a8999f;
+  --line: #322833;
+  --pink: #ff5a90;
+  --pink-ink: #1a0b12;
+  --pink-soft: #3d1a2a;
+  --kept: #45c98f;
+  --kept-soft: #143326;
+  --kept-ink: #07261a;
+  --pet-line: #f7eef2;
+  --broke: #ff6b6f;
+  --broke-soft: #3a1a1c;
+  --off: #e8b04f;
+  --off-soft: #362a14;
+  --blue: #7aa8f5;
+  --blue-soft: #19243a;
+  --violet: #b394f5;
+  --violet-soft: #2a1f3d;
+  --paper: #e4ddd3;
+  --paper-ink: #261d21;
+  --paper-muted: #6e6367;
+  --note: #3a3219;
+  --tape: rgb(255 255 255 / 0.14);
+  --shadow: 0 1px 2px rgb(0 0 0 / 0.3), 0 8px 24px -12px rgb(0 0 0 / 0.5);
+  color-scheme: dark;
 }
 
 @theme inline {

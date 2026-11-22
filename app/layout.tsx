@@ -2,6 +2,8 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { AuthProvider } from "@/components/auth";
 import { ToastProvider } from "@/components/ui";
+import { ThemeSync } from "@/components/theme-sync";
+import { themeInitScript } from "@/lib/theme";
 
 export const metadata: Metadata = {
   title: "Pinky",
@@ -22,9 +24,13 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
-      <head />
+    // The head script sets data-theme before React loads, so the attribute differs from the server render.
+    <html lang="en" suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
+      </head>
       <body>
+        <ThemeSync />
         <ToastProvider>
           <AuthProvider>{children}</AuthProvider>
         </ToastProvider>
