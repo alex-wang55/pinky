@@ -8,6 +8,14 @@ export default function manifest(): MetadataRoute.Manifest {
     start_url: "/",
     scope: "/",
     display: "standalone",
+    id: "/",
+    orientation: "portrait",
+    categories: ["health", "lifestyle", "social"],
+    // Long-press menu on Android. iOS ignores these.
+    shortcuts: [
+      { name: "New pact", url: "/pacts/new", icons: [{ src: "/icons/icon-192.png", sizes: "192x192" }] },
+      { name: "Friends", url: "/friends", icons: [{ src: "/icons/icon-192.png", sizes: "192x192" }] },
+    ],
     background_color: "#fff7f3",
     theme_color: "#f2316f",
     icons: [

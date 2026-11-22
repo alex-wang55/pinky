@@ -4,7 +4,7 @@ import { createContext, useCallback, useContext, useEffect, useState, type React
 import type { Session } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
 import type { Profile } from "@/lib/types";
-import { registerSW } from "@/lib/push-client";
+import { clearBadge, registerSW } from "@/lib/push-client";
 
 type AuthState = {
   session: Session | null;
@@ -44,9 +44,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setTimeout(() => loadProfile(s?.user.id), 0);
     });
     registerSW();
+    clearBadge();
+    const onVisible = () => {
+      if (document.visibilityState === "visible") clearBadge();
+    };
+    document.addEventListener("visibilitychange", onVisible);
     return () => {
       alive = false;
       sub.subscription.unsubscribe();
+      document.removeEventListener("visibilitychange", onVisible);
     };
   }, [loadProfile]);
 
