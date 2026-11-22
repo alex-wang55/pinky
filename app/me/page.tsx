@@ -5,9 +5,10 @@ import { useEffect, useRef, useState } from "react";
 import { Shell } from "@/components/shell";
 import { useAuth } from "@/components/auth";
 import { COLORS } from "@/components/auth-forms";
-import { Avatar, Button, Card, Field, SectionTitle, Spinner, Toggle, inputCls, cx, useToast } from "@/components/ui";
+import { Avatar, Button, Card, Field, SectionTitle, Segmented, Spinner, Toggle, inputCls, cx, useToast } from "@/components/ui";
 import { supabase, errMsg } from "@/lib/supabase";
 import { squareImage } from "@/lib/image";
+import { getThemeChoice, setThemeChoice, type ThemeChoice } from "@/lib/theme";
 import { currentSubscription, disablePush, enablePush, isIos, isStandalone, pushSupported } from "@/lib/push-client";
 import { IconCamera, IconEye, IconFlame, IconJar, IconMoon, IconPact, IconTrash } from "@/components/icons";
 import { HistorySummary, MyConfessions, PastPacts, YearGrid, useHistory } from "@/components/history";
@@ -32,6 +33,9 @@ function Me() {
   const [push, setPush] = useState<"loading" | "on" | "off" | "unsupported" | "ios">("loading");
   const [pushBusy, setPushBusy] = useState(false);
   const history = useHistory(session!.user.id);
+  const [theme, setTheme] = useState<ThemeChoice>("system");
+
+  useEffect(() => setTheme(getThemeChoice()), []);
 
   useEffect(() => {
     if (profile) {
@@ -211,6 +215,26 @@ function Me() {
             Save
           </Button>
         ) : null}
+      </Card>
+
+      <SectionTitle>Appearance</SectionTitle>
+      <Card className="space-y-3 p-4">
+        <div>
+          <div className="font-semibold">Theme</div>
+          <div className="text-sm text-muted">System matches your phone or computer's light or dark setting.</div>
+        </div>
+        <Segmented
+          value={theme}
+          onChange={(v) => {
+            setTheme(v);
+            setThemeChoice(v);
+          }}
+          options={[
+            { value: "system", label: "System" },
+            { value: "light", label: "Light" },
+            { value: "dark", label: "Dark" },
+          ]}
+        />
       </Card>
 
       <SectionTitle>Notifications</SectionTitle>
