@@ -7,6 +7,11 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   auth: { persistSession: true, autoRefreshToken: true, storageKey: "pinky-auth" },
 });
 
+/** Public URL for a profile picture in the avatars bucket. */
+export function avatarUrl(path: string | null | undefined): string | null {
+  return path ? supabase.storage.from("avatars").getPublicUrl(path).data.publicUrl : null;
+}
+
 /** Turn a Postgres/PostgREST error into something a person can read. */
 export function errMsg(e: unknown): string {
   if (!e) return "Something went wrong";

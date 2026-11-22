@@ -1,14 +1,15 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Shell } from "@/components/shell";
 import { useAuth } from "@/components/auth";
 import { COLORS } from "@/components/auth-forms";
-import { Avatar, Button, Card, Field, SectionTitle, Toggle, inputCls, cx, useToast } from "@/components/ui";
+import { Avatar, Button, Card, Field, SectionTitle, Spinner, Toggle, inputCls, cx, useToast } from "@/components/ui";
 import { supabase, errMsg } from "@/lib/supabase";
+import { squareImage } from "@/lib/image";
 import { currentSubscription, disablePush, enablePush, isIos, isStandalone, pushSupported } from "@/lib/push-client";
-import { IconEye, IconFlame, IconJar, IconMoon, IconPact } from "@/components/icons";
+import { IconCamera, IconEye, IconFlame, IconJar, IconMoon, IconPact, IconTrash } from "@/components/icons";
 import { HistorySummary, MyConfessions, PastPacts, YearGrid, useHistory } from "@/components/history";
 
 export default function MePage() {
@@ -26,6 +27,8 @@ function Me() {
   const [name, setName] = useState(profile?.display_name ?? "");
   const [color, setColor] = useState(profile?.color ?? COLORS[0]);
   const [saving, setSaving] = useState(false);
+  const [photoBusy, setPhotoBusy] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
   const [push, setPush] = useState<"loading" | "on" | "off" | "unsupported" | "ios">("loading");
   const [pushBusy, setPushBusy] = useState(false);
   const history = useHistory(session!.user.id);
@@ -56,6 +59,50 @@ function Me() {
     toast("Saved");
   }
 
+  /** Point the profile at a new photo (or none) and clean up the old file. */
+  async function setPhoto(path: string | null) {
+    if (!profile) return;
+    const old = profile.avatar_path;
+    const { error } = await supabase.from("profiles").update({ avatar_path: path }).eq("id", profile.id);
+    if (error) {
+      if (path) await supabase.storage.from("avatars").remove([path]);
+      throw error;
+    }
+    if (old) await supabase.storage.from("avatars").remove([old]);
+    await refreshProfile();
+  }
+
+  async function pickPhoto(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file || !profile) return;
+    setPhotoBusy(true);
+    try {
+      const blob = await squareImage(file);
+      const path = `${profile.id}/${crypto.randomUUID()}.jpg`;
+      const up = await supabase.storage.from("avatars").upload(path, blob, { contentType: "image/jpeg", upsert: false });
+      if (up.error) throw up.error;
+      await setPhoto(path);
+      toast("Photo updated");
+    } catch (err) {
+      toast(errMsg(err), "err");
+    } finally {
+      setPhotoBusy(false);
+    }
+  }
+
+  async function removePhoto() {
+    setPhotoBusy(true);
+    try {
+      await setPhoto(null);
+      toast("Photo removed");
+    } catch (err) {
+      toast(errMsg(err), "err");
+    } finally {
+      setPhotoBusy(false);
+    }
+  }
+
   async function togglePush(on: boolean) {
     setPushBusy(true);
     try {
@@ -75,11 +122,24 @@ function Me() {
   }
 
   const dirty = profile && (name.trim() !== profile.display_name || color !== profile.color);
+  const hasPhoto = Boolean(profile?.avatar_path);
 
   return (
     <div>
+      <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={pickPhoto} />
       <div className="flex flex-col items-center pb-2 pt-2 text-center">
-        <Avatar profile={{ display_name: name || "?", color }} size={84} />
+        <button
+          type="button"
+          onClick={() => fileRef.current?.click()}
+          disabled={photoBusy}
+          aria-label={hasPhoto ? "Change profile photo" : "Add profile photo"}
+          className="relative rounded-full transition hover:brightness-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pink"
+        >
+          <Avatar profile={{ display_name: name || "?", color, avatar_path: profile?.avatar_path }} size={84} />
+          <span className="absolute -bottom-0.5 -right-0.5 flex h-8 w-8 items-center justify-center rounded-full border-2 border-bg bg-pink text-pink-ink">
+            {photoBusy ? <Spinner small /> : <IconCamera size={16} />}
+          </span>
+        </button>
         <h1 className="mt-3 font-display text-2xl font-bold">{profile?.display_name}</h1>
         <p className="text-sm text-muted">@{profile?.username} · {session?.user.email}</p>
       </div>
@@ -113,6 +173,21 @@ function Me() {
       <div>
       <SectionTitle>Profile</SectionTitle>
       <Card className="space-y-4 p-4">
+        <div>
+          <span className="mb-1.5 block text-sm font-semibold">Photo</span>
+          <div className="flex flex-wrap gap-2">
+            <Button size="sm" variant="soft" loading={photoBusy} onClick={() => fileRef.current?.click()}>
+              {photoBusy ? null : <IconCamera size={16} />}
+              {hasPhoto ? "Change photo" : "Add photo"}
+            </Button>
+            {hasPhoto ? (
+              <Button size="sm" variant="ghost" disabled={photoBusy} onClick={removePhoto}>
+                <IconTrash size={16} />
+                Remove
+              </Button>
+            ) : null}
+          </div>
+        </div>
         <Field label="Display name">
           <input className={inputCls} maxLength={40} value={name} onChange={(e) => setName(e.target.value)} />
         </Field>

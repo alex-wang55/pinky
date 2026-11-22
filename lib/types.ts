@@ -6,6 +6,7 @@ export type Profile = {
   username: string;
   display_name: string;
   color: string;
+  avatar_path: string | null;
   created_at?: string;
 };
 

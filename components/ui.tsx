@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { createContext, useCallback, useContext, useRef, useState, type ReactNode } from "react";
 import type { Profile } from "@/lib/types";
+import { avatarUrl } from "@/lib/supabase";
 
 export function cx(...c: (string | false | null | undefined)[]) {
   return c.filter(Boolean).join(" ");
@@ -77,8 +78,27 @@ export function PageLoader() {
   );
 }
 
-export function Avatar({ profile, size = 36, ring }: { profile?: Pick<Profile, "display_name" | "color"> | null; size?: number; ring?: string }) {
+type AvatarProfile = Pick<Profile, "display_name" | "color"> & { avatar_path?: string | null };
+
+export function Avatar({ profile, size = 36, ring }: { profile?: AvatarProfile | null; size?: number; ring?: string }) {
   const name = profile?.display_name ?? "?";
+  const src = avatarUrl(profile?.avatar_path);
+  // fall back to initials if the photo is gone or won't load
+  const [failed, setFailed] = useState<string | null>(null);
+  const style = { width: size, height: size, background: profile?.color ?? "#999", fontSize: size * 0.4 };
+  if (src && failed !== src) {
+    return (
+      <img
+        src={src}
+        alt={name}
+        title={name}
+        decoding="async"
+        onError={() => setFailed(src)}
+        className={cx("inline-block shrink-0 rounded-full object-cover", ring)}
+        style={style}
+      />
+    );
+  }
   const initials = name
     .split(/\s+/)
     .map((w) => w[0])
@@ -88,7 +108,7 @@ export function Avatar({ profile, size = 36, ring }: { profile?: Pick<Profile, "
   return (
     <span
       className={cx("inline-flex shrink-0 items-center justify-center rounded-full font-bold text-white", ring)}
-      style={{ width: size, height: size, background: profile?.color ?? "#999", fontSize: size * 0.4 }}
+      style={style}
       title={name}
     >
       {initials}

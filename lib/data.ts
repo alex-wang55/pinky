@@ -10,7 +10,7 @@ export type Bundle = {
   hypes: Hype[];
 };
 
-export const MEMBER_SELECT = "*, profile:profiles!pact_members_user_id_fkey(id,username,display_name,color)";
+export const MEMBER_SELECT = "*, profile:profiles!pact_members_user_id_fkey(id,username,display_name,color,avatar_path)";
 
 export async function loadBundle(pactIds: string[], withReactions = false): Promise<Bundle> {
   if (pactIds.length === 0) return { pacts: [], members: [], checkins: [], doubts: [], reactions: [], hypes: [] };
